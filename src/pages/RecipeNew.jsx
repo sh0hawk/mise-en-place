@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Input, Textarea } from '../components/Input'
 import { COOKBOOK_CATEGORIES } from '../lib/demo-data'
+import { getCookbookIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
 
 const METHODS = {
@@ -33,6 +34,8 @@ function CategoryPicker({ selected, onChange }) {
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
       {COOKBOOK_CATEGORIES.map(cat => {
         const active = selected.includes(cat.id)
+        const Icon = getCookbookIcon(cat.id)
+        const iconColor = active ? '#fff' : 'var(--fg2)'
         return (
           <button
             key={cat.id}
@@ -40,6 +43,7 @@ function CategoryPicker({ selected, onChange }) {
               active ? selected.filter(c => c !== cat.id) : [...selected, cat.id]
             )}
             style={{
+              display: 'flex', alignItems: 'center', gap: 6,
               padding: '7px 14px',
               borderRadius: 'var(--radius-full)',
               background: active ? 'var(--accent)' : 'var(--subtle)',
@@ -51,7 +55,8 @@ function CategoryPicker({ selected, onChange }) {
               fontFamily: 'var(--font-ui)',
             }}
           >
-            {cat.icon} {cat.label}
+            <Icon size={15} color={iconColor} />
+            {cat.label}
           </button>
         )
       })}

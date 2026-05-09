@@ -27,6 +27,9 @@
   --error:       #B34040;
   --error-bg:    #FAE8E8;
 
+  /* Nav */
+  --nav-bg: rgba(250, 248, 245, 0.92);
+
   /* Spacing */
   --space-1: 4px;
   --space-2: 8px;
@@ -68,6 +71,7 @@
     --fg2:       #A8A29E;
     --fg1:       #F5F0EB;
     --accent:    #D9795A;
+    --nav-bg:    rgba(26, 23, 20, 0.92);
   }
 }
 
@@ -80,6 +84,7 @@
   --fg2:       #A8A29E;
   --fg1:       #F5F0EB;
   --accent:    #D9795A;
+  --nav-bg:    rgba(26, 23, 20, 0.92);
 }
 
 [data-theme="light"] {
@@ -91,4 +96,5 @@
   --fg2:       #6B6560;
   --fg1:       #1C1917;
   --accent:    #C4633E;
+  --nav-bg:    rgba(250, 248, 245, 0.92);
 }

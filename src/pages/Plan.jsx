@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Sheet } from '../components/Sheet'
+import { getMealtimeIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
 import { useMealSlots } from '../hooks/useMealSlots'
 import { getWeekStart, getWeekDays, toDateString, formatDay, isPast } from '../lib/dates'
 
 const MEALTIMES = [
-  { id: 'breakfast', label: 'Breakfast', icon: '🌅' },
-  { id: 'lunch',     label: 'Lunch',     icon: '☀️' },
-  { id: 'dinner',    label: 'Dinner',    icon: '🌙' },
-  { id: 'dessert',   label: 'Dessert',   icon: '🍰' },
-  { id: 'snack',     label: 'Snack',     icon: '🍎' },
+  { id: 'breakfast', label: 'Breakfast', Icon: getMealtimeIcon('breakfast') },
+  { id: 'lunch',     label: 'Lunch',     Icon: getMealtimeIcon('lunch') },
+  { id: 'dinner',    label: 'Dinner',    Icon: getMealtimeIcon('dinner') },
+  { id: 'dessert',   label: 'Dessert',   Icon: getMealtimeIcon('dessert') },
+  { id: 'snack',     label: 'Snack',     Icon: getMealtimeIcon('snack') },
 ]
 
 function SlotCard({ mealtime, recipes, locked, onAdd, onRemove }) {
@@ -24,7 +25,7 @@ function SlotCard({ mealtime, recipes, locked, onAdd, onRemove }) {
         padding: '10px 12px', cursor: locked ? 'default' : 'pointer',
         minHeight: 64, display: 'flex', alignItems: 'center', gap: 8,
       }}>
-        <span style={{ fontSize: 16, opacity: 0.5 }}>{mealtime.icon}</span>
+        <span style={{ opacity: 0.55, display: 'flex', flexShrink: 0 }}><mealtime.Icon size={20} color="#A8A29E" /></span>
         <div>
           <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg3)' }}>{mealtime.label}</div>
           {!locked && <div style={{ fontSize: 13, color: 'var(--fg3)', marginTop: 2 }}>+ Add</div>}
@@ -36,7 +37,7 @@ function SlotCard({ mealtime, recipes, locked, onAdd, onRemove }) {
   return (
     <div style={{ background: 'var(--elevated)', border: '1.5px solid var(--border)', borderRadius: 14, padding: '10px 12px', boxShadow: 'var(--shadow-sm)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-        <span style={{ fontSize: 16 }}>{mealtime.icon}</span>
+        <mealtime.Icon size={20} color="#A8A29E" />
         <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--fg3)' }}>{mealtime.label}</span>
         {!locked && (
           <button onClick={onAdd} style={{ marginLeft: 'auto', fontSize: 16, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>
@@ -160,10 +161,10 @@ export function Plan() {
       {/* Header */}
       <div style={{
         padding: '16px 20px 12px', paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
-        background: 'rgba(250,248,245,0.92)', backdropFilter: 'blur(16px)',
+        background: 'var(--nav-bg)', backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid var(--border)', flexShrink: 0,
       }}>
-        <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)', marginBottom: 12 }}>
+        <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)', marginBottom: 12 }}>
           Meal Plan
         </div>
         {/* Day selector */}

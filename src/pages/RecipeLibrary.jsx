@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { SearchInput } from '../components/Input'
 import { RecipeCard, RecipeCardSkeleton } from '../components/RecipeCard'
 import { COOKBOOK_CATEGORIES } from '../lib/demo-data'
+import { getCookbookIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
 
 function RecipeListRow({ recipe, onClick }) {
@@ -95,17 +96,23 @@ export function RecipeLibrary() {
         }}>
           All
         </button>
-        {COOKBOOK_CATEGORIES.map(cat => (
-          <button key={cat.id} onClick={() => setSearchParams({ category: cat.id })} style={{
-            padding: '6px 14px', borderRadius: 'var(--radius-full)',
-            background: activeCategory === cat.id ? 'var(--accent)' : 'var(--subtle)',
-            color: activeCategory === cat.id ? '#fff' : 'var(--fg2)',
-            border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
-            whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'var(--font-ui)',
-          }}>
-            {cat.icon} {cat.label}
-          </button>
-        ))}
+        {COOKBOOK_CATEGORIES.map(cat => {
+          const Icon = getCookbookIcon(cat.id)
+          const isActive = activeCategory === cat.id
+          return (
+            <button key={cat.id} onClick={() => setSearchParams({ category: cat.id })} style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              padding: '6px 14px', borderRadius: 'var(--radius-full)',
+              background: isActive ? 'var(--accent)' : 'var(--subtle)',
+              color: isActive ? '#fff' : 'var(--fg2)',
+              border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500,
+              whiteSpace: 'nowrap', flexShrink: 0, fontFamily: 'var(--font-ui)',
+            }}>
+              <Icon size={14} color={isActive ? '#fff' : 'var(--fg2)'} />
+              {cat.label}
+            </button>
+          )
+        })}
       </div>
 
       {/* Results */}

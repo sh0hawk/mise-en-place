@@ -5,7 +5,7 @@ import { Button } from '../components/Button'
 import { RecipeCard, RecipeCardSkeleton } from '../components/RecipeCard'
 import { Sheet } from '../components/Sheet'
 import { COOKBOOK_CATEGORIES } from '../lib/demo-data'
-import { getCookbookIcon } from '../components/CookbookIcons'
+import { getCookbookIcon, getCookbookColor } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
 import { useMealSlots } from '../hooks/useMealSlots'
 import {
@@ -24,7 +24,7 @@ function DayCard({ date, recipes = [], active, past, onClick }) {
         width: 120, flexShrink: 0, cursor: 'pointer', color: '#fff',
         boxShadow: 'var(--shadow-md)',
       }}>
-        <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.8, marginBottom: 4 }}>{day}</div>
+        <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.8, marginBottom: 4 }}>{day} · NOW</div>
         <div style={{ fontSize: 22, fontWeight: 600, fontFamily: 'var(--font-ui)', lineHeight: 1, marginBottom: 8 }}>{num}</div>
         {recipes.length > 0 ? (
           <div style={{ fontSize: 12, fontWeight: 500, opacity: 0.9, lineHeight: 1.3 }}>
@@ -62,31 +62,82 @@ function DayCard({ date, recipes = [], active, past, onClick }) {
 
 function CookbookPill({ category, active, onClick }) {
   const Icon = getCookbookIcon(category.id)
-  const iconColor = active ? '#fff' : 'var(--fg2)'
+  const iconColor = active ? '#fff' : getCookbookColor(category.id)
   return (
     <button onClick={onClick} style={{
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-      padding: '10px 14px', borderRadius: 'var(--radius-full)',
-      background: active ? 'var(--accent)' : 'var(--elevated)',
-      border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
-      cursor: 'pointer', flexShrink: 0, transition: 'all 0.12s',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+      background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+      width: 64, flexShrink: 0,
     }}>
-      <Icon size={20} color={iconColor} />
-      <span style={{ fontSize: 11, fontWeight: 600, color: iconColor, fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}>
+      <div style={{
+        width: 44, height: 44, borderRadius: 12,
+        background: active ? 'var(--accent)' : 'var(--subtle)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'background 0.12s',
+      }}>
+        <Icon size={22} color={iconColor} />
+      </div>
+      <span style={{
+        fontSize: 11, fontWeight: 500,
+        color: active ? 'var(--accent)' : 'var(--fg2)',
+        fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap',
+      }}>
         {category.label}
       </span>
     </button>
   )
 }
 
+function IconPencil() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="#A8A29E" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#A8A29E" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+function IconLink() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke="#A8A29E" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke="#A8A29E" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+function IconImage() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <rect x="3" y="3" width="18" height="18" rx="2" stroke="#A8A29E" strokeWidth="1.75" strokeLinejoin="round"/>
+      <circle cx="8.5" cy="8.5" r="1.5" stroke="#A8A29E" strokeWidth="1.5"/>
+      <path d="M21 15l-5-5L5 21" stroke="#A8A29E" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+function IconPlay() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <circle cx="12" cy="12" r="10" stroke="#A8A29E" strokeWidth="1.75"/>
+      <path d="M10 8l6 4-6 4V8z" stroke="#A8A29E" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+function IconCamera() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke="#A8A29E" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="12" cy="13" r="4" stroke="#A8A29E" strokeWidth="1.75"/>
+    </svg>
+  )
+}
+
 function ImportSheet({ open, onClose }) {
   const navigate = useNavigate()
   const methods = [
-    { icon: '✏️', label: 'Enter manually', desc: 'Type in all the details yourself', path: '/recipes/new?method=manual' },
-    { icon: '🔗', label: 'Import from URL', desc: 'Paste a link to a recipe page', path: '/recipes/new?method=url' },
-    { icon: '📷', label: 'Scan a photo', desc: 'Photo from your camera roll', path: '/recipes/new?method=photo' },
-    { icon: '📹', label: 'Import from video', desc: 'YouTube, TikTok, Instagram', path: '/recipes/new?method=video' },
-    { icon: '📸', label: 'Take a photo', desc: 'Use your camera now', path: '/recipes/new?method=camera' },
+    { Icon: IconPencil, label: 'Enter manually', desc: 'Type in all the details yourself', path: '/recipes/new?method=manual' },
+    { Icon: IconLink,   label: 'Import from URL', desc: 'Paste a link to a recipe page',    path: '/recipes/new?method=url' },
+    { Icon: IconImage,  label: 'Scan a photo',    desc: 'Photo from your camera roll',      path: '/recipes/new?method=photo' },
+    { Icon: IconPlay,   label: 'Import from video', desc: 'YouTube, TikTok, Instagram',     path: '/recipes/new?method=video' },
+    { Icon: IconCamera, label: 'Take a photo',    desc: 'Use your camera now',               path: '/recipes/new?method=camera' },
   ]
   return (
     <Sheet open={open} onClose={onClose} title="Add Recipe">
@@ -97,7 +148,7 @@ function ImportSheet({ open, onClose }) {
             padding: '14px 20px', background: 'none', border: 'none',
             cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border)',
           }}>
-            <span style={{ fontSize: 24, flexShrink: 0 }}>{m.icon}</span>
+            <m.Icon />
             <div>
               <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)' }}>{m.label}</div>
               <div style={{ fontSize: 13, color: 'var(--fg3)', marginTop: 2 }}>{m.desc}</div>
@@ -182,7 +233,7 @@ export function Home() {
       {/* Day Scroller */}
       <div style={{ padding: '20px 0 0' }}>
         <div style={{ paddingLeft: 20, marginBottom: 10 }}>
-          <SectionHeader label="This Week" action="Full plan ›" onAction={() => navigate('/plan')} />
+          <SectionHeader label="This Week" />
         </div>
         <div ref={dayScrollRef} className="scroll-x" style={{ paddingLeft: 20, paddingRight: 20, display: 'flex', gap: 10 }}>
           <div onClick={() => navigate('/plan?view=archive')} style={{
@@ -238,7 +289,7 @@ export function Home() {
         <div style={{ paddingLeft: 20, paddingRight: 20 }}>
           <SectionHeader label="Cookbooks" action="See all ›" onAction={() => navigate('/recipes')} />
         </div>
-        <div className="scroll-x" style={{ paddingLeft: 20, paddingRight: 20, display: 'flex', gap: 10 }}>
+        <div className="scroll-x" style={{ paddingLeft: 16, paddingRight: 16, display: 'flex', gap: 10 }}>
           {COOKBOOK_CATEGORIES.map(cat => (
             <CookbookPill
               key={cat.id}
@@ -266,7 +317,7 @@ export function Home() {
           <SectionHeader label="Chef's Specials" action="Resets Monday" />
         </div>
         <div className="scroll-x" style={{ paddingLeft: 20, paddingRight: 20, display: 'flex', gap: 12 }}>
-          {recipesLoading
+          {recipesLoading || recipes.length < 3
             ? Array.from({ length: 3 }, (_, i) => <RecipeCardSkeleton key={i} />)
             : specials.map(r => <RecipeCard key={r.id} recipe={r} />)
           }
