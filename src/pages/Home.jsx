@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Logo } from '../components/Logo'
 import { Button } from '../components/Button'
 import { RecipeCard, RecipeCardSkeleton } from '../components/RecipeCard'
 import { Sheet } from '../components/Sheet'
 import { COOKBOOK_CATEGORIES } from '../lib/demo-data'
+import { getCookbookIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
 import { useMealSlots } from '../hooks/useMealSlots'
 import {
@@ -60,6 +61,8 @@ function DayCard({ date, recipes = [], active, past, onClick }) {
 }
 
 function CookbookPill({ category, active, onClick }) {
+  const Icon = getCookbookIcon(category.id)
+  const iconColor = active ? '#fff' : 'var(--fg2)'
   return (
     <button onClick={onClick} style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
@@ -68,8 +71,8 @@ function CookbookPill({ category, active, onClick }) {
       border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
       cursor: 'pointer', flexShrink: 0, transition: 'all 0.12s',
     }}>
-      <span style={{ fontSize: 20 }}>{category.icon}</span>
-      <span style={{ fontSize: 11, fontWeight: 600, color: active ? '#fff' : 'var(--fg2)', fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}>
+      <Icon size={20} color={iconColor} />
+      <span style={{ fontSize: 11, fontWeight: 600, color: iconColor, fontFamily: 'var(--font-ui)', whiteSpace: 'nowrap' }}>
         {category.label}
       </span>
     </button>
@@ -128,11 +131,21 @@ export function Home() {
 
   const { recipes, recipesLoading, shoppingChecked, shoppingTotal } = useAppData()
   const { getRecipesForDate } = useMealSlots()
+  const dayScrollRef = useRef(null)
+  const todayCardRef = useRef(null)
 
   const today = new Date()
   const weekStart = getWeekStart(today)
   const days = getWeekDays(weekStart)
   const todayStr = toDateString(today)
+
+  useEffect(() => {
+    const container = dayScrollRef.current
+    const card = todayCardRef.current
+    if (container && card) {
+      container.scrollLeft = card.offsetLeft - (container.offsetWidth - card.offsetWidth) / 2
+    }
+  }, [])
 
   // Chef's Specials: seeded Mon–Sun so both phones see the same 3 recipes
   const mondaySeed = parseInt(toDateString(weekStart).replace(/-/g, '').slice(-5))
@@ -171,26 +184,27 @@ export function Home() {
         <div style={{ paddingLeft: 20, marginBottom: 10 }}>
           <SectionHeader label="This Week" action="Full plan ›" onAction={() => navigate('/plan')} />
         </div>
-        <div className="scroll-x" style={{ paddingLeft: 20, paddingRight: 20, display: 'flex', gap: 10 }}>
+        <div ref={dayScrollRef} className="scroll-x" style={{ paddingLeft: 20, paddingRight: 20, display: 'flex', gap: 10 }}>
           <div onClick={() => navigate('/plan?view=archive')} style={{
             background: 'transparent', border: '1.5px dashed var(--border)', borderRadius: 14,
-            padding: '12px 14px', width: 80, flexShrink: 0, cursor: 'pointer', opacity: 0.45,
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '12px 10px', width: 64, flexShrink: 0, cursor: 'pointer', opacity: 0.4,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <span style={{ fontSize: 18 }}>📁</span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Past</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.4, textAlign: 'center' }}>Past weeks</span>
           </div>
           {days.map(day => {
             const ds = toDateString(day)
+            const isActiveDay = ds === todayStr
             return (
-              <DayCard
-                key={ds}
-                date={day}
-                recipes={getRecipesForDate(ds)}
-                active={ds === todayStr}
-                past={isPast(day) && ds !== todayStr}
-                onClick={() => navigate(`/plan?date=${ds}`)}
-              />
+              <div key={ds} ref={isActiveDay ? todayCardRef : null} style={{ flexShrink: 0 }}>
+                <DayCard
+                  date={day}
+                  recipes={getRecipesForDate(ds)}
+                  active={isActiveDay}
+                  past={isPast(day) && !isActiveDay}
+                  onClick={() => navigate(`/plan?date=${ds}`)}
+                />
+              </div>
             )
           })}
         </div>

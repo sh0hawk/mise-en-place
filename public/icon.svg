@@ -1,15 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <rect width="512" height="512" fill="#C4633E" rx="114"/>
-  <g transform="translate(140, 82) scale(2.8)" stroke="white" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <!-- Fork -->
-    <line x1="22" y1="10" x2="22" y2="52" stroke-width="1.8"/>
-    <line x1="27" y1="10" x2="27" y2="52" stroke-width="1.8"/>
-    <line x1="32" y1="10" x2="32" y2="52" stroke-width="1.8"/>
-    <line x1="37" y1="10" x2="37" y2="52" stroke-width="1.8"/>
-    <path d="M22 52 Q22 62 27 65 L32 65 Q37 62 37 52" stroke-width="1.8"/>
-    <line x1="29.5" y1="65" x2="29.5" y2="100" stroke-width="1.8"/>
-    <!-- Spoon -->
-    <path d="M68 10 Q82 10 82 28 Q82 46 68 52 Q54 46 54 28 Q54 10 68 10 Z" stroke-width="1.8"/>
-    <line x1="68" y1="52" x2="68" y2="100" stroke-width="1.8"/>
+  <g transform="translate(126, 44) scale(2.5)" stroke="white" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-width="1.8">
+    <line x1="22" y1="10" x2="22" y2="52"/>
+    <line x1="27" y1="10" x2="27" y2="52"/>
+    <line x1="32" y1="10" x2="32" y2="52"/>
+    <line x1="37" y1="10" x2="37" y2="52"/>
+    <path d="M22 52 Q22 62 27 65 L32 65 Q37 62 37 52"/>
+    <line x1="29.5" y1="65" x2="29.5" y2="160"/>
+    <path d="M68 10 Q82 10 82 28 Q82 46 68 52 Q54 46 54 28 Q54 10 68 10 Z"/>
+    <line x1="68" y1="52" x2="68" y2="160"/>
   </g>
 </svg>

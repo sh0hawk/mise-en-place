@@ -174,7 +174,7 @@ export function Plan() {
             cursor: 'pointer', fontSize: 11, fontWeight: 600, color: 'var(--fg3)',
             textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.5,
           }}>
-            📁 Past
+            Past
           </button>
           {days.map(day => {
             const ds = toDateString(day)
