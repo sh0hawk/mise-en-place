@@ -66,23 +66,43 @@ function parseResult(raw) {
   return { recipe, uncertainFields }
 }
 
+const FETCH_ATTEMPTS = [
+  { label: 'direct',      url: (u) => u },
+  { label: 'allorigins',  url: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+  { label: 'corsproxy',   url: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
+  { label: 'codetabs',    url: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+]
+
+async function fetchHtml(url) {
+  for (const attempt of FETCH_ATTEMPTS) {
+    const fetchUrl = attempt.url(url)
+    console.log(`[fetchHtml] trying ${attempt.label}:`, fetchUrl.slice(0, 80))
+    try {
+      const res = await fetch(fetchUrl)
+      console.log(`[fetchHtml] ${attempt.label} →`, res.status, res.statusText)
+      if (res.ok) {
+        const html = await res.text()
+        console.log(`[fetchHtml] ${attempt.label} succeeded — HTML length:`, html.length)
+        return html
+      }
+    } catch (e) {
+      console.warn(`[fetchHtml] ${attempt.label} threw:`, e.message)
+    }
+  }
+  throw new Error('All fetch attempts failed for this URL')
+}
+
 export async function extractFromUrl(url) {
   console.log('[extractFromUrl] starting — url:', url)
 
-  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`
-  console.log('[extractFromUrl] fetching via proxy:', proxyUrl)
-  let pageRes
+  let html
   try {
-    pageRes = await fetch(proxyUrl)
+    html = await fetchHtml(url)
   } catch (e) {
-    console.error('[extractFromUrl] proxy fetch threw:', e)
+    console.error('[extractFromUrl] fetchHtml failed:', e.message)
     throw e
   }
-  console.log('[extractFromUrl] proxy response:', pageRes.status, pageRes.statusText)
-  if (!pageRes.ok) throw new Error(`Could not fetch page (${pageRes.status})`)
 
-  const html = await pageRes.text()
-  console.log('[extractFromUrl] HTML length:', html.length)
   const pageText = stripHtml(html)
   console.log('[extractFromUrl] stripped text length:', pageText.length, '— preview:', pageText.slice(0, 200))
   if (pageText.length < 100) throw new Error('Page appears empty or unreadable')
