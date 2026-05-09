@@ -1,5 +1,7 @@
 const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY
 
+console.log('[recipeExtraction] module loaded — API key defined:', !!API_KEY, '— first 8 chars:', API_KEY?.slice(0, 8) ?? '(none)')
+
 function stripHtml(html) {
   const parser = new DOMParser()
   const doc = parser.parseFromString(html, 'text/html')
@@ -12,6 +14,7 @@ function stripHtml(html) {
 }
 
 async function callClaude(messages, system) {
+  console.log('[callClaude] sending request — API key present:', !!API_KEY)
   const body = {
     model: 'claude-sonnet-4-20250514',
     max_tokens: 2000,
@@ -29,14 +32,22 @@ async function callClaude(messages, system) {
     },
     body: JSON.stringify(body),
   })
+  console.log('[callClaude] response status:', res.status, res.statusText)
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
+    console.error('[callClaude] API error body:', err)
     throw new Error(err?.error?.message || `API error ${res.status}`)
   }
   const data = await res.json()
   const text = data.content?.[0]?.text || ''
+  console.log('[callClaude] raw response text (first 300 chars):', text.slice(0, 300))
   const clean = text.replace(/^```json?\s*/i, '').replace(/\s*```$/i, '').trim()
-  return JSON.parse(clean)
+  try {
+    return JSON.parse(clean)
+  } catch (e) {
+    console.error('[callClaude] JSON parse failed — clean text:', clean.slice(0, 500))
+    throw new Error(`JSON parse error: ${e.message}`)
+  }
 }
 
 function fileToBase64(file) {
@@ -56,11 +67,24 @@ function parseResult(raw) {
 }
 
 export async function extractFromUrl(url) {
+  console.log('[extractFromUrl] starting — url:', url)
+
   const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`
-  const pageRes = await fetch(proxyUrl)
+  console.log('[extractFromUrl] fetching via proxy:', proxyUrl)
+  let pageRes
+  try {
+    pageRes = await fetch(proxyUrl)
+  } catch (e) {
+    console.error('[extractFromUrl] proxy fetch threw:', e)
+    throw e
+  }
+  console.log('[extractFromUrl] proxy response:', pageRes.status, pageRes.statusText)
   if (!pageRes.ok) throw new Error(`Could not fetch page (${pageRes.status})`)
+
   const html = await pageRes.text()
+  console.log('[extractFromUrl] HTML length:', html.length)
   const pageText = stripHtml(html)
+  console.log('[extractFromUrl] stripped text length:', pageText.length, '— preview:', pageText.slice(0, 200))
   if (pageText.length < 100) throw new Error('Page appears empty or unreadable')
 
   const system = `You are a recipe extraction assistant. Extract the recipe from the provided webpage text and return ONLY a JSON object with no other text, no markdown, no backticks.
@@ -88,7 +112,9 @@ If a field is not present in the recipe, set it to null.
 Do not include author bios, ads, comments, or unrelated content.
 Return ONLY the JSON object.`
 
+  console.log('[extractFromUrl] calling Claude with', pageText.length, 'chars of page text')
   const raw = await callClaude([{ role: 'user', content: `Extract the recipe from this webpage:\n\n${pageText}` }], system)
+  console.log('[extractFromUrl] Claude returned:', JSON.stringify(raw).slice(0, 300))
   if (!raw.name || !raw.ingredients?.length) throw new Error('No recipe found in page')
   return parseResult(raw)
 }
