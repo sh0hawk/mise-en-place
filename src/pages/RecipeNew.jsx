@@ -172,11 +172,13 @@ export function RecipeNew() {
   const uncertainFields = location.state?.uncertainFields || []
   const isAIPrefilled   = !isEditing && !!aiRecipe && Object.keys(aiRecipe).length > 1
 
-  const [recipe, setRecipe]       = useState(() => isAIPrefilled ? normalizeAIRecipe(aiRecipe) : BLANK_RECIPE)
-  const [loading, setLoading]     = useState(isEditing)
-  const [saving, setSaving]       = useState(false)
-  const [saveError, setSaveError] = useState(null)
-  const { addRecipe, editRecipe, recipes } = useAppData()
+  const [recipe, setRecipe]             = useState(() => isAIPrefilled ? normalizeAIRecipe(aiRecipe) : BLANK_RECIPE)
+  const [loading, setLoading]           = useState(isEditing)
+  const [saving, setSaving]             = useState(false)
+  const [saveError, setSaveError]       = useState(null)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting]         = useState(false)
+  const { addRecipe, editRecipe, removeRecipe, recipes } = useAppData()
 
   useEffect(() => {
     if (!isEditing) return
@@ -224,6 +226,19 @@ export function RecipeNew() {
     setField('directions', [...recipe.directions, { step: recipe.directions.length + 1, text: '' }])
   }
 
+  async function handleDelete() {
+    if (!isEditing || deleting) return
+    setDeleting(true)
+    try {
+      await removeRecipe(editId)
+      navigate('/recipes', { replace: true })
+    } catch (err) {
+      console.error('handleDelete', err)
+      setDeleting(false)
+      setConfirmingDelete(false)
+    }
+  }
+
   async function handleSave() {
     if (!recipe.name.trim() || saving) return
     setSaving(true)
@@ -263,7 +278,7 @@ export function RecipeNew() {
   const canSave = !!recipe.name.trim() && !saving
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)', overflow: 'hidden' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
       {/* Top Nav */}
       <div style={{
         padding: '14px 16px',
@@ -284,12 +299,12 @@ export function RecipeNew() {
           Cancel
         </button>
         <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)' }}>
-          New Recipe
+          {isEditing ? 'Edit Recipe' : 'New Recipe'}
         </span>
         <div style={{ width: 48 }} />
       </div>
 
-      <div className="scroll-y" style={{ flex: 1, paddingBottom: 16 }}>
+      <div className="scroll-y" style={{ flex: 1, paddingBottom: 100 }}>
         {isAIPrefilled && uncertainFields.length > 0 && (
           <div style={{
             margin: '12px 20px 0', padding: '10px 14px',
@@ -465,15 +480,74 @@ export function RecipeNew() {
 
           </div>
         </div>
+
+        {/* Delete section — edit mode only */}
+        {isEditing && (
+          <div style={{ padding: '24px 20px 8px', borderTop: '1px solid var(--border)', marginTop: 8 }}>
+            {!confirmingDelete ? (
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                style={{
+                  width: '100%', padding: '14px',
+                  background: '#FAE8E8', color: '#B34040',
+                  border: 'none', borderRadius: 'var(--radius-md)',
+                  fontSize: 15, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                }}
+              >
+                Delete Recipe
+              </button>
+            ) : (
+              <div style={{ background: '#FAE8E8', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
+                <p style={{
+                  color: '#B34040', fontSize: 14, margin: '0 0 12px',
+                  fontWeight: 500, fontFamily: 'var(--font-ui)',
+                }}>
+                  Delete this recipe? This can't be undone.
+                </p>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={() => setConfirmingDelete(false)}
+                    style={{
+                      flex: 1, padding: '10px',
+                      background: 'var(--bg)', color: 'var(--fg1)',
+                      border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+                      fontSize: 14, fontWeight: 500,
+                      cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    style={{
+                      flex: 1, padding: '10px',
+                      background: '#B34040', color: '#fff',
+                      border: 'none', borderRadius: 'var(--radius-md)',
+                      fontSize: 14, fontWeight: 600,
+                      cursor: deleting ? 'default' : 'pointer',
+                      fontFamily: 'var(--font-ui)',
+                    }}
+                  >
+                    {deleting ? 'Deleting…' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Fixed footer Save button */}
       <div style={{
-        flexShrink: 0,
+        position: 'fixed',
+        left: 0, right: 0, bottom: 0,
         padding: '12px 20px',
-        paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
+        paddingBottom: 'max(20px, env(safe-area-inset-bottom, 20px))',
         background: 'var(--bg)',
         borderTop: '1px solid var(--border)',
+        zIndex: 50,
       }}>
         <Button variant="primary" fullWidth onClick={handleSave} disabled={!canSave}>
           {saving ? 'Saving…' : 'Save recipe'}

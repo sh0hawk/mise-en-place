@@ -43,6 +43,11 @@ export async function updateRecipe(id, recipe) {
   return data
 }
 
+export async function deleteRecipe(id) {
+  const { error } = await supabase.from('recipes').delete().eq('id', id)
+  if (error) throw error
+}
+
 // ─── Meal plans ─────────────────────────────────────────────────────────────
 
 export async function getOrCreateCurrentPlan() {

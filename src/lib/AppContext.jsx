@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from './supabase'
 import {
-  fetchRecipes, insertRecipe, updateRecipe,
+  fetchRecipes, insertRecipe, updateRecipe, deleteRecipe,
   getOrCreateCurrentPlan,
   getOrCreateShoppingList, fetchShoppingItems,
   insertShoppingItem, updateShoppingItemChecked, deleteShoppingItems,
@@ -82,6 +82,11 @@ export function AppProvider({ children }) {
     return saved
   }, [])
 
+  const removeRecipe = useCallback(async (id) => {
+    await deleteRecipe(id)
+    setRecipes(prev => prev.filter(r => r.id !== id))
+  }, [])
+
   const toggleShoppingItem = useCallback(async (id) => {
     const item = shoppingItems.find(i => i.id === id)
     if (!item) return
@@ -134,6 +139,7 @@ export function AppProvider({ children }) {
       recipesLoading,
       addRecipe,
       editRecipe,
+      removeRecipe,
       // Plan
       plan,
       planId: plan?.id,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { AppProvider } from './lib/AppContext'
 import { BottomNav } from './components/NavBar'
 import { Home } from './pages/Home'
@@ -12,26 +12,13 @@ import { Settings } from './pages/Settings'
 import { Login } from './pages/Login'
 import { getSession, onAuthStateChange } from './lib/auth'
 
-export default function App() {
-  const [session, setSession] = useState(undefined)
+function AppInner({ session }) {
+  const location = useLocation()
+  const isRecipeForm = location.pathname === '/recipes/new' ||
+    /^\/recipes\/[^/]+\/edit$/.test(location.pathname)
 
-  useEffect(() => {
-    getSession()
-      .then(({ data }) => setSession(data.session ?? null))
-      .catch(() => setSession(null))
-    const { data: { subscription } } = onAuthStateChange((_event, session) => {
-      setSession(session ?? null)
-    })
-    return () => subscription.unsubscribe()
-  }, [])
-
-  if (session === undefined) {
-    return <div style={{ height: '100%', background: 'var(--bg)' }} />
-  }
-
-  if (session === null) {
-    return <Login />
-  }
+  if (session === undefined) return <div style={{ height: '100%', background: 'var(--bg)' }} />
+  if (session === null) return <Login />
 
   return (
     <AppProvider>
@@ -48,8 +35,24 @@ export default function App() {
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </div>
-        <BottomNav />
+        {!isRecipeForm && <BottomNav />}
       </div>
     </AppProvider>
   )
+}
+
+export default function App() {
+  const [session, setSession] = useState(undefined)
+
+  useEffect(() => {
+    getSession()
+      .then(({ data }) => setSession(data.session ?? null))
+      .catch(() => setSession(null))
+    const { data: { subscription } } = onAuthStateChange((_event, session) => {
+      setSession(session ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  return <AppInner session={session} />
 }
