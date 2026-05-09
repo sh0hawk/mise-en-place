@@ -1,0 +1,94 @@
+/* ============================================================
+   Design Tokens — Mise en Place
+   ============================================================ */
+
+:root {
+  /* Neutrals — Light Mode */
+  --bg:        #FAF8F5;
+  --subtle:    #F2EFEA;
+  --elevated:  #FFFFFF;
+  --border:    #E8E4DF;
+  --fg3:       #A8A29E;
+  --fg2:       #6B6560;
+  --fg1:       #1C1917;
+
+  /* Brand — Terracotta Clay */
+  --accent-subtle:  #F5E8E2;
+  --accent-muted:   #D9907A;
+  --accent:         #C4633E;
+  --accent-hover:   #B05535;
+  --accent-press:   #9E4A2B;
+
+  /* Semantic */
+  --success:     #4A7C59;
+  --success-bg:  #EAF2ED;
+  --warning:     #B07D30;
+  --warning-bg:  #FAF3E3;
+  --error:       #B34040;
+  --error-bg:    #FAE8E8;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radii */
+  --radius-sm:   6px;
+  --radius-md:   12px;
+  --radius-lg:   20px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(28,25,23,0.08), 0 1px 2px rgba(28,25,23,0.04);
+  --shadow-md: 0 1px 3px rgba(28,25,23,0.08), 0 4px 12px rgba(28,25,23,0.06);
+  --shadow-lg: 0 8px 32px rgba(28,25,23,0.10), 0 2px 8px rgba(28,25,23,0.06);
+
+  /* Typography */
+  --font-ui:      'Figtree', sans-serif;
+  --font-display: 'Cormorant Garamond', serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  /* Nav height */
+  --nav-bottom-height: 64px;
+  --nav-top-height: 56px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #1A1714;
+    --elevated:  #241F1B;
+    --subtle:    #2E2824;
+    --border:    #3A342F;
+    --fg3:       #6B6560;
+    --fg2:       #A8A29E;
+    --fg1:       #F5F0EB;
+    --accent:    #D9795A;
+  }
+}
+
+[data-theme="dark"] {
+  --bg:        #1A1714;
+  --elevated:  #241F1B;
+  --subtle:    #2E2824;
+  --border:    #3A342F;
+  --fg3:       #6B6560;
+  --fg2:       #A8A29E;
+  --fg1:       #F5F0EB;
+  --accent:    #D9795A;
+}
+
+[data-theme="light"] {
+  --bg:        #FAF8F5;
+  --subtle:    #F2EFEA;
+  --elevated:  #FFFFFF;
+  --border:    #E8E4DF;
+  --fg3:       #A8A29E;
+  --fg2:       #6B6560;
+  --fg1:       #1C1917;
+  --accent:    #C4633E;
+}
