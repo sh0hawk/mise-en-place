@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { AppProvider } from './lib/AppContext'
 import { BottomNav } from './components/NavBar'
@@ -8,8 +9,30 @@ import { RecipeDetail } from './pages/RecipeDetail'
 import { RecipeNew } from './pages/RecipeNew'
 import { Shopping } from './pages/Shopping'
 import { Settings } from './pages/Settings'
+import { Login } from './pages/Login'
+import { getSession, onAuthStateChange } from './lib/auth'
 
 export default function App() {
+  const [session, setSession] = useState(undefined)
+
+  useEffect(() => {
+    getSession()
+      .then(({ data }) => setSession(data.session ?? null))
+      .catch(() => setSession(null))
+    const { data: { subscription } } = onAuthStateChange((_event, session) => {
+      setSession(session ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  if (session === undefined) {
+    return <div style={{ height: '100%', background: 'var(--bg)' }} />
+  }
+
+  if (session === null) {
+    return <Login />
+  }
+
   return (
     <AppProvider>
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>

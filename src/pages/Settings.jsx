@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { signOut } from '../lib/auth'
 
 function SettingsRow({ label, sublabel, action }) {
   return (
@@ -54,6 +55,7 @@ export function Settings() {
     return localStorage.getItem('theme') || 'system'
   })
   const [syncStatus] = useState('Connected')
+  const [confirmingSignOut, setConfirmingSignOut] = useState(false)
 
   useEffect(() => {
     const root = document.documentElement
@@ -172,6 +174,64 @@ export function Settings() {
         <div style={{ background: 'var(--elevated)', borderRadius: 14, margin: '0 16px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
           <SettingsRow label="App name" action={<span style={{ fontSize: 15, color: 'var(--fg2)', fontFamily: 'var(--font-display)' }}>Mise en Place</span>} />
           <SettingsRow label="Version" action={<span style={{ fontSize: 14, color: 'var(--fg3)', fontFamily: 'var(--font-mono)' }}>0.1.0</span>} />
+        </div>
+
+        {/* Session */}
+        <div style={{ padding: '20px 16px 6px' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', marginBottom: 8 }}>
+            Session
+          </div>
+        </div>
+        <div style={{ background: 'var(--elevated)', borderRadius: 14, margin: '0 16px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+          {!confirmingSignOut ? (
+            <SettingsRow
+              label="Sign out"
+              sublabel="You'll need to sign back in to access your data"
+              action={
+                <button
+                  onClick={() => setConfirmingSignOut(true)}
+                  style={{
+                    fontSize: 13, fontWeight: 500,
+                    color: 'var(--error)', background: 'var(--error-bg)',
+                    border: 'none', borderRadius: 'var(--radius-sm)',
+                    padding: '5px 12px', cursor: 'pointer', fontFamily: 'var(--font-ui)',
+                  }}
+                >
+                  Sign out
+                </button>
+              }
+            />
+          ) : (
+            <div style={{ padding: '14px 16px' }}>
+              <div style={{ fontSize: 14, color: 'var(--fg1)', marginBottom: 12, fontFamily: 'var(--font-ui)' }}>
+                Are you sure you want to sign out?
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => signOut()}
+                  style={{
+                    flex: 1, padding: '9px 0', borderRadius: 'var(--radius-sm)',
+                    background: 'var(--error-bg)', color: 'var(--error)',
+                    fontWeight: 600, fontSize: 14, border: 'none', cursor: 'pointer',
+                    fontFamily: 'var(--font-ui)',
+                  }}
+                >
+                  Sign out
+                </button>
+                <button
+                  onClick={() => setConfirmingSignOut(false)}
+                  style={{
+                    flex: 1, padding: '9px 0', borderRadius: 'var(--radius-sm)',
+                    background: 'var(--subtle)', color: 'var(--fg2)',
+                    fontWeight: 500, fontSize: 14, border: 'none', cursor: 'pointer',
+                    fontFamily: 'var(--font-ui)',
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ padding: '24px 20px', fontSize: 13, color: 'var(--fg3)', textAlign: 'center', lineHeight: 1.6 }}>
