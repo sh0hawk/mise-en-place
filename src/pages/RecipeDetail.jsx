@@ -72,7 +72,7 @@ export function RecipeDetail() {
       <div style={{
         padding: '14px 16px', paddingTop: 'max(14px, env(safe-area-inset-top, 14px))',
         display: 'flex', alignItems: 'center',
-        background: 'rgba(250,248,245,0.92)', backdropFilter: 'blur(16px)',
+        background: 'var(--nav-bg)', backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid var(--border)',
         gap: 8, flexShrink: 0,
       }}>

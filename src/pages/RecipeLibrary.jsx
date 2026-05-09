@@ -62,7 +62,7 @@ export function RecipeLibrary() {
       {/* Header */}
       <div style={{
         padding: '16px 20px 12px', paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
-        background: 'rgba(250,248,245,0.92)', backdropFilter: 'blur(16px)',
+        background: 'var(--nav-bg)', backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)', borderBottom: '1px solid var(--border)', flexShrink: 0,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>

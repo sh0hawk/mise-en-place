@@ -266,7 +266,7 @@ export function RecipeNew() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(250,248,245,0.92)',
+        background: 'var(--nav-bg)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
         borderBottom: '1px solid var(--border)',

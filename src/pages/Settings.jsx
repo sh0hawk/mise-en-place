@@ -81,7 +81,7 @@ export function Settings() {
       <div style={{
         padding: '16px 20px 12px',
         paddingTop: 'max(16px, env(safe-area-inset-top, 16px))',
-        background: 'rgba(250,248,245,0.92)',
+        background: 'var(--nav-bg)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
         borderBottom: '1px solid var(--border)',
