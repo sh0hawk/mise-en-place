@@ -1,18 +1,11 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Input, Textarea } from '../components/Input'
 import { COOKBOOK_CATEGORIES } from '../lib/demo-data'
 import { getCookbookIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
-
-const METHODS = {
-  manual: { icon: '✏️', label: 'Manual Entry' },
-  url:    { icon: '🔗', label: 'Import from URL' },
-  photo:  { icon: '📷', label: 'Scan Photo' },
-  camera: { icon: '📸', label: 'Take Photo' },
-  video:  { icon: '📹', label: 'Video Import' },
-}
+import { formatQuantity } from '../lib/fractions'
 
 const BLANK_RECIPE = {
   name: '',
@@ -27,6 +20,42 @@ const BLANK_RECIPE = {
   source_url: '',
   ingredients: [{ quantity: '', unit: '', item: '', notes: '' }],
   directions: [{ step: 1, text: '' }],
+}
+
+const VALID_CATEGORY_IDS = new Set(COOKBOOK_CATEGORIES.map(c => c.id))
+
+function normalizeAIRecipe(ai) {
+  const categories = (ai.categories || [])
+    .map(c => COOKBOOK_CATEGORIES.find(cat => cat.id === c || cat.label === c)?.id)
+    .filter(Boolean)
+    .filter(c => VALID_CATEGORY_IDS.has(c))
+
+  const ingredients = (ai.ingredients || []).filter(i => i?.item)
+  const directions  = (ai.directions  || []).filter(d => d?.text)
+
+  return {
+    name:                ai.name              || '',
+    categories,
+    prep_time:           ai.prep_time         || '',
+    cook_time:           ai.cook_time         || '',
+    servings_base:       Number(ai.servings_base) || 2,
+    yield:               ai.yield             || '',
+    author_notes:        ai.author_notes      || '',
+    serving_suggestions: ai.serving_suggestions || '',
+    source_label:        ai.source_label      || '',
+    source_url:          ai.source_url        || '',
+    ingredients: ingredients.length
+      ? ingredients.map(i => ({
+          quantity: i.quantity != null ? formatQuantity(String(i.quantity)) : '',
+          unit:     i.unit  || '',
+          item:     i.item  || '',
+          notes:    i.notes || '',
+        }))
+      : BLANK_RECIPE.ingredients,
+    directions: directions.length
+      ? directions.map((d, idx) => ({ step: idx + 1, text: d.text || '' }))
+      : BLANK_RECIPE.directions,
+  }
 }
 
 function CategoryPicker({ selected, onChange }) {
@@ -108,90 +137,47 @@ function IngredientRow({ ingredient, onChange, onRemove, canRemove }) {
   )
 }
 
-function ImportPlaceholder({ method, onSwitch }) {
-  const m = METHODS[method]
-  const isVideo = method === 'video'
-  const disclaimer = method === 'video'
-    ? 'Video imports from TikTok or Instagram may require additional review. Quantities and steps may be incomplete.'
-    : null
 
-  return (
-    <div style={{ padding: '24px 20px' }}>
-      <div style={{
-        background: 'var(--elevated)',
-        border: '1.5px dashed var(--border)',
-        borderRadius: 'var(--radius-lg)',
-        padding: 24,
-        textAlign: 'center',
-        marginBottom: 20,
-      }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>{m?.icon || '✏️'}</div>
-        <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg1)', marginBottom: 8 }}>
-          {m?.label || 'Import'}
-        </div>
-        <div style={{ fontSize: 14, color: 'var(--fg3)', lineHeight: 1.5, marginBottom: 16 }}>
-          AI-powered import is coming soon.<br />
-          For now, enter the recipe manually below.
-        </div>
-        {disclaimer && (
-          <div style={{
-            background: 'var(--warning-bg)',
-            border: '1px solid var(--warning)',
-            borderRadius: 'var(--radius-md)',
-            padding: '10px 14px',
-            fontSize: 13,
-            color: 'var(--warning)',
-            textAlign: 'left',
-            marginBottom: 12,
-          }}>
-            ⚠️ {disclaimer}
-          </div>
-        )}
-        <button
-          onClick={() => onSwitch('manual')}
-          style={{
-            fontSize: 15,
-            color: 'var(--accent)',
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-ui)',
-          }}
-        >
-          Switch to manual entry →
-        </button>
-      </div>
-    </div>
-  )
-}
-
-function FieldLabel({ children }) {
+function FieldLabel({ children, uncertain }) {
   return (
     <label style={{
-      display: 'block',
-      fontSize: 12,
-      fontWeight: 600,
-      color: 'var(--fg2)',
-      marginBottom: 6,
-      textTransform: 'uppercase',
-      letterSpacing: '0.06em',
-      fontFamily: 'var(--font-ui)',
+      display: 'flex', alignItems: 'center', gap: 6,
+      fontSize: 12, fontWeight: 600, color: 'var(--fg2)',
+      marginBottom: 6, textTransform: 'uppercase',
+      letterSpacing: '0.06em', fontFamily: 'var(--font-ui)',
     }}>
       {children}
+      {uncertain && (
+        <span
+          title="Review this field"
+          style={{
+            display: 'inline-block', width: 7, height: 7,
+            borderRadius: '50%', background: '#F59E0B', flexShrink: 0,
+          }}
+        />
+      )}
     </label>
   )
 }
 
 export function RecipeNew() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const [method, setMethod] = useState(searchParams.get('method') || 'manual')
-  const [recipe, setRecipe] = useState(BLANK_RECIPE)
-  const [saving, setSaving] = useState(false)
-  const [saveError, setSaveError] = useState(null)
+  const location = useLocation()
+
+  const aiRecipe        = location.state?.recipe
+  const uncertainFields = location.state?.uncertainFields || []
+  const isAIPrefilled   = !!aiRecipe && Object.keys(aiRecipe).length > 1
+
+  const [recipe, setRecipe]           = useState(() => isAIPrefilled ? normalizeAIRecipe(aiRecipe) : BLANK_RECIPE)
+  const [hasInteracted, setHasInteracted] = useState(!isAIPrefilled)
+  const [saving, setSaving]           = useState(false)
+  const [saveError, setSaveError]     = useState(null)
   const { addRecipe } = useAppData()
 
+  function u(fieldKey) { return uncertainFields.includes(fieldKey) }
+
   function setField(key, value) {
+    setHasInteracted(true)
     setRecipe(prev => ({ ...prev, [key]: value }))
   }
 
@@ -255,7 +241,7 @@ export function RecipeNew() {
     }
   }
 
-  const showManualForm = method === 'manual'
+  const canSave = recipe.name.trim() && !saving && hasInteracted
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)', overflow: 'hidden' }}>
@@ -283,16 +269,13 @@ export function RecipeNew() {
         </span>
         <button
           onClick={handleSave}
-          disabled={!recipe.name.trim() || saving}
+          disabled={!canSave}
           style={{
-            fontSize: 15,
-            fontWeight: 600,
-            color: recipe.name.trim() && !saving ? 'var(--accent)' : 'var(--fg3)',
-            background: 'none',
-            border: 'none',
-            cursor: recipe.name.trim() && !saving ? 'pointer' : 'default',
-            fontFamily: 'var(--font-ui)',
-            padding: 0,
+            fontSize: 15, fontWeight: 600,
+            color: canSave ? 'var(--accent)' : 'var(--fg3)',
+            background: 'none', border: 'none',
+            cursor: canSave ? 'pointer' : 'default',
+            fontFamily: 'var(--font-ui)', padding: 0,
           }}
         >
           {saving ? 'Saving…' : 'Save'}
@@ -300,21 +283,27 @@ export function RecipeNew() {
       </div>
 
       <div className="scroll-y" style={{ flex: 1, paddingBottom: 32 }}>
+        {isAIPrefilled && !hasInteracted && (
+          <div style={{
+            margin: '12px 20px 0', padding: '10px 14px',
+            background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+            borderRadius: 'var(--radius-md)', fontSize: 13,
+            color: '#92400E', lineHeight: 1.5, fontFamily: 'var(--font-ui)',
+          }}>
+            Review the extracted recipe — amber dots mark fields to double-check. Edit any field to enable Save.
+          </div>
+        )}
         {saveError && (
           <div style={{ margin: '12px 20px 0', padding: '10px 14px', background: 'var(--error-bg)', color: 'var(--error)', borderRadius: 'var(--radius-md)', fontSize: 13 }}>
             {saveError}
           </div>
         )}
-        {!showManualForm && (
-          <ImportPlaceholder method={method} onSwitch={setMethod} />
-        )}
 
-        {/* Always show manual form, even after switching from import */}
         <div style={{ padding: '20px 20px 0' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {/* Name */}
             <div>
-              <FieldLabel>Recipe name *</FieldLabel>
+              <FieldLabel uncertain={u('name')}>Recipe name *</FieldLabel>
               <Input
                 placeholder="e.g. Shakshuka with Feta"
                 value={recipe.name}
@@ -324,18 +313,18 @@ export function RecipeNew() {
 
             {/* Categories */}
             <div>
-              <FieldLabel>Categories</FieldLabel>
+              <FieldLabel uncertain={u('categories')}>Categories</FieldLabel>
               <CategoryPicker selected={recipe.categories} onChange={v => setField('categories', v)} />
             </div>
 
             {/* Timing */}
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}>
-                <FieldLabel>Prep time</FieldLabel>
+                <FieldLabel uncertain={u('prep_time')}>Prep time</FieldLabel>
                 <Input placeholder="10 min" value={recipe.prep_time} onChange={e => setField('prep_time', e.target.value)} />
               </div>
               <div style={{ flex: 1 }}>
-                <FieldLabel>Cook time</FieldLabel>
+                <FieldLabel uncertain={u('cook_time')}>Cook time</FieldLabel>
                 <Input placeholder="20 min" value={recipe.cook_time} onChange={e => setField('cook_time', e.target.value)} />
               </div>
             </div>
@@ -343,7 +332,7 @@ export function RecipeNew() {
             {/* Servings */}
             <div style={{ display: 'flex', gap: 10 }}>
               <div style={{ flex: 1 }}>
-                <FieldLabel>Servings</FieldLabel>
+                <FieldLabel uncertain={u('servings_base')}>Servings</FieldLabel>
                 <Input
                   type="number"
                   placeholder="2"
@@ -352,14 +341,14 @@ export function RecipeNew() {
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <FieldLabel>Yield</FieldLabel>
+                <FieldLabel uncertain={u('yield')}>Yield</FieldLabel>
                 <Input placeholder="e.g. 12 cookies" value={recipe.yield} onChange={e => setField('yield', e.target.value)} />
               </div>
             </div>
 
             {/* Ingredients */}
             <div>
-              <FieldLabel>Ingredients</FieldLabel>
+              <FieldLabel uncertain={u('ingredients')}>Ingredients</FieldLabel>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {recipe.ingredients.map((ing, i) => (
                   <IngredientRow
@@ -373,14 +362,9 @@ export function RecipeNew() {
                 <button
                   onClick={addIngredient}
                   style={{
-                    textAlign: 'left',
-                    fontSize: 14,
-                    color: 'var(--accent)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '4px 0',
-                    fontFamily: 'var(--font-ui)',
+                    textAlign: 'left', fontSize: 14, color: 'var(--accent)',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '4px 0', fontFamily: 'var(--font-ui)',
                   }}
                 >
                   + Add ingredient
@@ -390,18 +374,15 @@ export function RecipeNew() {
 
             {/* Directions */}
             <div>
-              <FieldLabel>Directions</FieldLabel>
+              <FieldLabel uncertain={u('directions')}>Directions</FieldLabel>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {recipe.directions.map((dir, i) => (
                   <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <div style={{
-                      width: 28, height: 28,
-                      borderRadius: '50%',
-                      background: 'var(--accent)',
-                      color: '#fff',
+                      width: 28, height: 28, borderRadius: '50%',
+                      background: 'var(--accent)', color: '#fff',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 13, fontWeight: 600,
-                      flexShrink: 0, marginTop: 10,
+                      fontSize: 13, fontWeight: 600, flexShrink: 0, marginTop: 10,
                     }}>
                       {i + 1}
                     </div>
@@ -429,14 +410,9 @@ export function RecipeNew() {
                 <button
                   onClick={addDirection}
                   style={{
-                    textAlign: 'left',
-                    fontSize: 14,
-                    color: 'var(--accent)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '4px 0',
-                    fontFamily: 'var(--font-ui)',
+                    textAlign: 'left', fontSize: 14, color: 'var(--accent)',
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    padding: '4px 0', fontFamily: 'var(--font-ui)',
                   }}
                 >
                   + Add step
@@ -446,7 +422,7 @@ export function RecipeNew() {
 
             {/* Source */}
             <div>
-              <FieldLabel>Source (optional)</FieldLabel>
+              <FieldLabel uncertain={u('source_label') || u('source_url')}>Source (optional)</FieldLabel>
               <Input
                 placeholder="e.g. NYT Cooking"
                 value={recipe.source_label}
@@ -462,7 +438,7 @@ export function RecipeNew() {
 
             {/* Notes */}
             <div>
-              <FieldLabel>Author notes (optional)</FieldLabel>
+              <FieldLabel uncertain={u('author_notes')}>Author notes (optional)</FieldLabel>
               <Textarea
                 placeholder="Tips, variations, substitutions…"
                 value={recipe.author_notes}
@@ -472,7 +448,7 @@ export function RecipeNew() {
 
             {/* Serving suggestions */}
             <div>
-              <FieldLabel>Serving suggestions (optional)</FieldLabel>
+              <FieldLabel uncertain={u('serving_suggestions')}>Serving suggestions (optional)</FieldLabel>
               <Textarea
                 placeholder="How to serve…"
                 value={recipe.serving_suggestions}
@@ -480,7 +456,7 @@ export function RecipeNew() {
               />
             </div>
 
-            <Button variant="primary" fullWidth onClick={handleSave} disabled={!recipe.name.trim() || saving} style={{ marginTop: 8 }}>
+            <Button variant="primary" fullWidth onClick={handleSave} disabled={!canSave} style={{ marginTop: 8 }}>
               {saving ? 'Saving…' : 'Save recipe'}
             </Button>
           </div>

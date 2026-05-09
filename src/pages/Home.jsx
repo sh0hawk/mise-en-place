@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { extractFromUrl, extractFromPhoto } from '../lib/recipeExtraction'
 import { Logo } from '../components/Logo'
 import { Button } from '../components/Button'
 import { RecipeCard, RecipeCardSkeleton } from '../components/RecipeCard'
@@ -130,32 +131,203 @@ function IconCamera() {
   )
 }
 
+const URL_MSGS   = ['Fetching recipe…', 'Reading ingredients…', 'Almost done…']
+const PHOTO_MSGS = ['Reading your photo…', 'Identifying ingredients…', 'Almost done…']
+
+function SheetSpinner() {
+  return (
+    <div style={{
+      width: 28, height: 28,
+      border: '2.5px solid var(--border)',
+      borderTopColor: 'var(--accent)',
+      borderRadius: '50%',
+      animation: 'spin 0.75s linear infinite',
+      margin: '0 auto 16px',
+    }} />
+  )
+}
+
 function ImportSheet({ open, onClose }) {
   const navigate = useNavigate()
-  const methods = [
-    { Icon: IconPencil, label: 'Enter manually', desc: 'Type in all the details yourself', path: '/recipes/new?method=manual' },
-    { Icon: IconLink,   label: 'Import from URL', desc: 'Paste a link to a recipe page',    path: '/recipes/new?method=url' },
-    { Icon: IconImage,  label: 'Scan a photo',    desc: 'Photo from your camera roll',      path: '/recipes/new?method=photo' },
-    { Icon: IconPlay,   label: 'Import from video', desc: 'YouTube, TikTok, Instagram',     path: '/recipes/new?method=video' },
-    { Icon: IconCamera, label: 'Take a photo',    desc: 'Use your camera now',               path: '/recipes/new?method=camera' },
-  ]
-  return (
-    <Sheet open={open} onClose={onClose} title="Add Recipe">
+  const [view, setView] = useState('list')
+  const [urlValue, setUrlValue] = useState('')
+  const [loadingMode, setLoadingMode] = useState('url')
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0)
+  const [errorMsg, setErrorMsg] = useState('')
+  const [fallbackUrl, setFallbackUrl] = useState('')
+  const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) { setView('list'); setUrlValue(''); setErrorMsg(''); setLoadingMsgIdx(0) }
+  }, [open])
+
+  const loadingMsgs = loadingMode === 'url' ? URL_MSGS : PHOTO_MSGS
+
+  useEffect(() => {
+    if (view !== 'loading') return
+    const id = setInterval(() => setLoadingMsgIdx(i => (i + 1) % loadingMsgs.length), 2000)
+    return () => clearInterval(id)
+  }, [view, loadingMsgs.length])
+
+  async function runUrlExtraction(url) {
+    setLoadingMode('url'); setLoadingMsgIdx(0); setFallbackUrl(url); setView('loading')
+    try {
+      const { recipe, uncertainFields } = await extractFromUrl(url)
+      onClose()
+      navigate('/recipes/new', { state: { recipe, uncertainFields } })
+    } catch {
+      setErrorMsg("We couldn't extract a recipe from that URL. The page may be paywalled or the recipe format wasn't recognized.")
+      setView('error')
+    }
+  }
+
+  function handleUrlPaste(e) {
+    const text = e.clipboardData.getData('text').trim()
+    if (/^https?:\/\//i.test(text)) {
+      e.preventDefault()
+      setUrlValue(text)
+      runUrlExtraction(text)
+    }
+  }
+
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setLoadingMode('photo'); setLoadingMsgIdx(0); setFallbackUrl(''); setView('loading')
+    try {
+      const { recipe, uncertainFields } = await extractFromPhoto(file)
+      onClose()
+      navigate('/recipes/new', { state: { recipe, uncertainFields } })
+    } catch {
+      setErrorMsg("We couldn't read a recipe from that photo. Try a clearer image or enter the recipe manually.")
+      setView('error')
+    }
+  }
+
+  function switchToManual() {
+    onClose()
+    navigate('/recipes/new', { state: { recipe: { source_url: fallbackUrl }, uncertainFields: [] } })
+  }
+
+  const rowStyle = {
+    width: '100%', display: 'flex', alignItems: 'center', gap: 14,
+    padding: '14px 20px', background: 'none', border: 'none',
+    cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border)',
+  }
+  const labelStyle = { fontSize: 15, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)' }
+  const descStyle  = { fontSize: 13, color: 'var(--fg3)', marginTop: 2 }
+
+  let body
+  if (view === 'list') {
+    body = (
       <div style={{ padding: '8px 0 16px' }}>
-        {methods.map(m => (
-          <button key={m.label} onClick={() => { onClose(); navigate(m.path) }} style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 14,
-            padding: '14px 20px', background: 'none', border: 'none',
-            cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border)',
-          }}>
-            <m.Icon />
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)' }}>{m.label}</div>
-              <div style={{ fontSize: 13, color: 'var(--fg3)', marginTop: 2 }}>{m.desc}</div>
-            </div>
-          </button>
-        ))}
+        <button style={rowStyle} onClick={() => { onClose(); navigate('/recipes/new') }}>
+          <IconPencil />
+          <div><div style={labelStyle}>Enter manually</div><div style={descStyle}>Type in all the details yourself</div></div>
+        </button>
+        <button style={rowStyle} onClick={() => setView('url-input')}>
+          <IconLink />
+          <div><div style={labelStyle}>Import from URL</div><div style={descStyle}>Paste a link to a recipe page</div></div>
+        </button>
+        <button style={rowStyle} onClick={() => fileInputRef.current?.click()}>
+          <IconImage />
+          <div><div style={labelStyle}>Scan a photo</div><div style={descStyle}>Photo from your camera roll</div></div>
+        </button>
+        <button style={{ ...rowStyle, opacity: 0.5, cursor: 'default' }}>
+          <IconPlay />
+          <div><div style={labelStyle}>Import from video</div><div style={descStyle}>Coming soon</div></div>
+        </button>
+        <button style={{ ...rowStyle, opacity: 0.5, cursor: 'default', borderBottom: 'none' }}>
+          <IconCamera />
+          <div><div style={labelStyle}>Take a photo</div><div style={descStyle}>Coming soon</div></div>
+        </button>
       </div>
+    )
+  } else if (view === 'url-input') {
+    body = (
+      <div style={{ padding: '16px 20px 28px' }}>
+        <button
+          onClick={() => setView('list')}
+          style={{ fontSize: 14, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 16px', fontFamily: 'var(--font-ui)' }}
+        >
+          ← Back
+        </button>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg1)', marginBottom: 12, fontFamily: 'var(--font-ui)' }}>
+          Paste a recipe URL
+        </div>
+        <input
+          type="url"
+          inputMode="url"
+          autoFocus
+          placeholder="https://…"
+          value={urlValue}
+          onChange={e => setUrlValue(e.target.value)}
+          onPaste={handleUrlPaste}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            padding: '11px 14px', fontSize: 15,
+            background: 'var(--subtle)', border: '1.5px solid var(--border)',
+            borderRadius: 'var(--radius-md)', color: 'var(--fg1)',
+            fontFamily: 'var(--font-ui)', outline: 'none',
+            marginBottom: 12,
+          }}
+        />
+        <button
+          onClick={() => runUrlExtraction(urlValue)}
+          disabled={!/^https?:\/\//i.test(urlValue)}
+          style={{
+            width: '100%', padding: '12px', borderRadius: 'var(--radius-md)',
+            background: /^https?:\/\//i.test(urlValue) ? 'var(--accent)' : 'var(--border)',
+            color: '#fff', border: 'none', cursor: /^https?:\/\//i.test(urlValue) ? 'pointer' : 'default',
+            fontSize: 15, fontWeight: 600, fontFamily: 'var(--font-ui)',
+          }}
+        >
+          Extract recipe
+        </button>
+      </div>
+    )
+  } else if (view === 'loading') {
+    body = (
+      <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+        <SheetSpinner />
+        <div style={{ fontSize: 15, color: 'var(--fg2)', fontFamily: 'var(--font-ui)' }}>
+          {loadingMsgs[loadingMsgIdx]}
+        </div>
+      </div>
+    )
+  } else if (view === 'error') {
+    body = (
+      <div style={{ padding: '24px 20px 32px' }}>
+        <div style={{
+          background: 'var(--error-bg)', borderRadius: 'var(--radius-md)',
+          padding: '14px 16px', fontSize: 14, color: 'var(--error)',
+          lineHeight: 1.5, marginBottom: 20,
+        }}>
+          {errorMsg}
+        </div>
+        <button
+          onClick={switchToManual}
+          style={{ fontSize: 15, color: 'var(--accent)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', display: 'block', marginBottom: 12 }}
+        >
+          Switch to manual entry →
+        </button>
+        {loadingMode === 'url' && (
+          <button
+            onClick={() => setView('url-input')}
+            style={{ fontSize: 15, color: 'var(--fg2)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)' }}
+          >
+            Try a different URL →
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <Sheet open={open} onClose={view === 'loading' ? undefined : onClose} title="Add Recipe">
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoChange} />
+      {body}
     </Sheet>
   )
 }
