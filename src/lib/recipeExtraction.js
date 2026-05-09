@@ -1,17 +1,8 @@
+import { supabase } from './supabase'
+
 const API_KEY = import.meta.env.VITE_ANTHROPIC_API_KEY
 
 console.log('[recipeExtraction] module loaded — API key defined:', !!API_KEY, '— first 8 chars:', API_KEY?.slice(0, 8) ?? '(none)')
-
-function stripHtml(html) {
-  const parser = new DOMParser()
-  const doc = parser.parseFromString(html, 'text/html')
-  for (const tag of ['script', 'style', 'nav', 'footer', 'header', 'aside', 'iframe', 'noscript', 'figure']) {
-    doc.querySelectorAll(tag).forEach(el => el.remove())
-  }
-  const main = doc.querySelector('main, article, [class*="recipe"], [id*="recipe"], [class*="wprm"], [class*="tasty"], [class*="content"]')
-  const text = (main || doc.body).textContent || ''
-  return text.replace(/\s+/g, ' ').trim().slice(0, 8000)
-}
 
 async function callClaude(messages, system) {
   console.log('[callClaude] sending request — API key present:', !!API_KEY)
@@ -66,45 +57,25 @@ function parseResult(raw) {
   return { recipe, uncertainFields }
 }
 
-const FETCH_ATTEMPTS = [
-  { label: 'direct',      url: (u) => u },
-  { label: 'allorigins',  url: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
-  { label: 'corsproxy',   url: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}` },
-  { label: 'codetabs',    url: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
-]
-
-async function fetchHtml(url) {
-  for (const attempt of FETCH_ATTEMPTS) {
-    const fetchUrl = attempt.url(url)
-    console.log(`[fetchHtml] trying ${attempt.label}:`, fetchUrl.slice(0, 80))
-    try {
-      const res = await fetch(fetchUrl)
-      console.log(`[fetchHtml] ${attempt.label} →`, res.status, res.statusText)
-      if (res.ok) {
-        const html = await res.text()
-        console.log(`[fetchHtml] ${attempt.label} succeeded — HTML length:`, html.length)
-        return html
-      }
-    } catch (e) {
-      console.warn(`[fetchHtml] ${attempt.label} threw:`, e.message)
-    }
-  }
-  throw new Error('All fetch attempts failed for this URL')
-}
-
 export async function extractFromUrl(url) {
-  console.log('[extractFromUrl] starting — url:', url)
+  console.log('[extractFromUrl] calling Edge Function for url:', url)
 
-  let html
-  try {
-    html = await fetchHtml(url)
-  } catch (e) {
-    console.error('[extractFromUrl] fetchHtml failed:', e.message)
-    throw e
+  const { data, error } = await supabase.functions.invoke('fetch-recipe-url', {
+    body: { url },
+  })
+
+  if (error) {
+    console.error('[extractFromUrl] Edge Function error:', error)
+    throw new Error(error.message || 'Failed to fetch page')
   }
 
-  const pageText = stripHtml(html)
-  console.log('[extractFromUrl] stripped text length:', pageText.length, '— preview:', pageText.slice(0, 200))
+  if (data?.error) {
+    console.error('[extractFromUrl] Edge Function returned error:', data.error)
+    throw new Error(data.error)
+  }
+
+  const pageText = data?.text || ''
+  console.log('[extractFromUrl] page text length:', pageText.length, '— preview:', pageText.slice(0, 200))
   if (pageText.length < 100) throw new Error('Page appears empty or unreadable')
 
   const system = `You are a recipe extraction assistant. Extract the recipe from the provided webpage text and return ONLY a JSON object with no other text, no markdown, no backticks.
