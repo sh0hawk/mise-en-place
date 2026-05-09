@@ -7,7 +7,7 @@ console.log('[recipeExtraction] module loaded — API key defined:', !!API_KEY, 
 async function callClaude(messages, system) {
   console.log('[callClaude] sending request — API key present:', !!API_KEY)
   const body = {
-    model: 'claude-sonnet-4-20250514',
+    model: 'claude-sonnet-4-5',
     max_tokens: 2000,
     messages,
   }
