@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Input, Textarea } from '../components/Input'
 import { COOKBOOK_CATEGORIES } from '../lib/demo-data'
@@ -18,6 +18,7 @@ const BLANK_RECIPE = {
   serving_suggestions: '',
   source_label: '',
   source_url: '',
+  photo_url: '',
   ingredients: [{ quantity: '', unit: '', item: '', notes: '' }],
   directions: [{ step: 1, text: '' }],
 }
@@ -44,6 +45,7 @@ function normalizeAIRecipe(ai) {
     serving_suggestions: ai.serving_suggestions || '',
     source_label:        ai.source_label      || '',
     source_url:          ai.source_url        || '',
+    photo_url:           ai.photo_url         || '',
     ingredients: ingredients.length
       ? ingredients.map(i => ({
           quantity: i.quantity != null ? formatQuantity(String(i.quantity)) : '',
@@ -163,21 +165,31 @@ function FieldLabel({ children, uncertain }) {
 export function RecipeNew() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { id: editId } = useParams()
+  const isEditing = !!editId
 
   const aiRecipe        = location.state?.recipe
   const uncertainFields = location.state?.uncertainFields || []
-  const isAIPrefilled   = !!aiRecipe && Object.keys(aiRecipe).length > 1
+  const isAIPrefilled   = !isEditing && !!aiRecipe && Object.keys(aiRecipe).length > 1
 
-  const [recipe, setRecipe]           = useState(() => isAIPrefilled ? normalizeAIRecipe(aiRecipe) : BLANK_RECIPE)
-  const [hasInteracted, setHasInteracted] = useState(!isAIPrefilled)
-  const [saving, setSaving]           = useState(false)
-  const [saveError, setSaveError]     = useState(null)
-  const { addRecipe } = useAppData()
+  const [recipe, setRecipe]       = useState(() => isAIPrefilled ? normalizeAIRecipe(aiRecipe) : BLANK_RECIPE)
+  const [loading, setLoading]     = useState(isEditing)
+  const [saving, setSaving]       = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const { addRecipe, editRecipe, recipes } = useAppData()
+
+  useEffect(() => {
+    if (!isEditing) return
+    const existing = recipes.find(r => r.id === editId)
+    if (existing) {
+      setRecipe(normalizeAIRecipe(existing))
+      setLoading(false)
+    }
+  }, [isEditing, editId, recipes])
 
   function u(fieldKey) { return uncertainFields.includes(fieldKey) }
 
   function setField(key, value) {
-    setHasInteracted(true)
     setRecipe(prev => ({ ...prev, [key]: value }))
   }
 
@@ -216,24 +228,31 @@ export function RecipeNew() {
     if (!recipe.name.trim() || saving) return
     setSaving(true)
     setSaveError(null)
+    const payload = {
+      name: recipe.name.trim(),
+      categories: recipe.categories,
+      prep_time: recipe.prep_time || null,
+      cook_time: recipe.cook_time || null,
+      servings_base: recipe.servings_base || null,
+      yield: recipe.yield || null,
+      author_notes: recipe.author_notes || null,
+      serving_suggestions: recipe.serving_suggestions || null,
+      source_label: recipe.source_label || null,
+      source_url: recipe.source_url || null,
+      photo_url: recipe.photo_url || null,
+      ingredients: recipe.ingredients.filter(i => i.item.trim()),
+      directions: recipe.directions
+        .filter(d => d.text.trim())
+        .map((d, idx) => ({ ...d, step: idx + 1 })),
+    }
     try {
-      const saved = await addRecipe({
-        name: recipe.name.trim(),
-        categories: recipe.categories,
-        prep_time: recipe.prep_time || null,
-        cook_time: recipe.cook_time || null,
-        servings_base: recipe.servings_base || null,
-        yield: recipe.yield || null,
-        author_notes: recipe.author_notes || null,
-        serving_suggestions: recipe.serving_suggestions || null,
-        source_label: recipe.source_label || null,
-        source_url: recipe.source_url || null,
-        ingredients: recipe.ingredients.filter(i => i.item.trim()),
-        directions: recipe.directions
-          .filter(d => d.text.trim())
-          .map((d, idx) => ({ ...d, step: idx + 1 })),
-      })
-      navigate(`/recipes/${saved.id}`, { replace: true })
+      if (isEditing) {
+        await editRecipe(editId, payload)
+        navigate(`/recipes/${editId}`, { replace: true })
+      } else {
+        const saved = await addRecipe(payload)
+        navigate(`/recipes/${saved.id}`, { replace: true })
+      }
     } catch (err) {
       console.error('handleSave', err)
       setSaveError('Failed to save. Check your connection and try again.')
@@ -241,7 +260,7 @@ export function RecipeNew() {
     }
   }
 
-  const canSave = recipe.name.trim() && !saving && hasInteracted
+  const canSave = !!recipe.name.trim() && !saving
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)', overflow: 'hidden' }}>
@@ -267,30 +286,18 @@ export function RecipeNew() {
         <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)' }}>
           New Recipe
         </span>
-        <button
-          onClick={handleSave}
-          disabled={!canSave}
-          style={{
-            fontSize: 15, fontWeight: 600,
-            color: canSave ? 'var(--accent)' : 'var(--fg3)',
-            background: 'none', border: 'none',
-            cursor: canSave ? 'pointer' : 'default',
-            fontFamily: 'var(--font-ui)', padding: 0,
-          }}
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
+        <div style={{ width: 48 }} />
       </div>
 
-      <div className="scroll-y" style={{ flex: 1, paddingBottom: 32 }}>
-        {isAIPrefilled && !hasInteracted && (
+      <div className="scroll-y" style={{ flex: 1, paddingBottom: 16 }}>
+        {isAIPrefilled && uncertainFields.length > 0 && (
           <div style={{
             margin: '12px 20px 0', padding: '10px 14px',
             background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
             borderRadius: 'var(--radius-md)', fontSize: 13,
             color: '#92400E', lineHeight: 1.5, fontFamily: 'var(--font-ui)',
           }}>
-            Review the extracted recipe — amber dots mark fields to double-check. Edit any field to enable Save.
+            Amber dots mark fields Claude wasn't confident about — review before saving.
           </div>
         )}
         {saveError && (
@@ -456,11 +463,21 @@ export function RecipeNew() {
               />
             </div>
 
-            <Button variant="primary" fullWidth onClick={handleSave} disabled={!canSave} style={{ marginTop: 8 }}>
-              {saving ? 'Saving…' : 'Save recipe'}
-            </Button>
           </div>
         </div>
+      </div>
+
+      {/* Fixed footer Save button */}
+      <div style={{
+        flexShrink: 0,
+        padding: '12px 20px',
+        paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
+        background: 'var(--bg)',
+        borderTop: '1px solid var(--border)',
+      }}>
+        <Button variant="primary" fullWidth onClick={handleSave} disabled={!canSave}>
+          {saving ? 'Saving…' : 'Save recipe'}
+        </Button>
       </div>
     </div>
   )

@@ -42,6 +42,7 @@ export default function App() {
             <Route path="/plan" element={<Plan />} />
             <Route path="/recipes" element={<RecipeLibrary />} />
             <Route path="/recipes/new" element={<RecipeNew />} />
+            <Route path="/recipes/:id/edit" element={<RecipeNew />} />
             <Route path="/recipes/:id" element={<RecipeDetail />} />
             <Route path="/shopping" element={<Shopping />} />
             <Route path="/settings" element={<Settings />} />

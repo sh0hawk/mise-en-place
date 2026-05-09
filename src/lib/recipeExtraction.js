@@ -107,7 +107,9 @@ Return ONLY the JSON object.`
   const raw = await callClaude([{ role: 'user', content: `Extract the recipe from this webpage:\n\n${pageText}` }], system)
   console.log('[extractFromUrl] Claude returned:', JSON.stringify(raw).slice(0, 300))
   if (!raw.name || !raw.ingredients?.length) throw new Error('No recipe found in page')
-  return parseResult(raw)
+  const result = parseResult(raw)
+  if (data?.imageUrl) result.recipe.photo_url = data.imageUrl
+  return result
 }
 
 export async function extractFromPhoto(imageFile) {

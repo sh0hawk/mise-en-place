@@ -32,6 +32,17 @@ export async function insertRecipe(recipe) {
   return data
 }
 
+export async function updateRecipe(id, recipe) {
+  const { data, error } = await supabase
+    .from('recipes')
+    .update(recipe)
+    .eq('id', id)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 // ─── Meal plans ─────────────────────────────────────────────────────────────
 
 export async function getOrCreateCurrentPlan() {

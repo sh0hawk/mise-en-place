@@ -19,6 +19,22 @@ function stripHtml(html: string): string {
     .slice(0, 8000)
 }
 
+function extractImageUrl(html: string): string | null {
+  // og:image — two attribute orderings
+  const m =
+    html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i)
+  if (m?.[1]) return m[1]
+
+  // twitter:image fallback
+  const t =
+    html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ??
+    html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i)
+  if (t?.[1]) return t[1]
+
+  return null
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -68,10 +84,11 @@ Deno.serve(async (req) => {
     console.log('[fetch-recipe-url] HTML length:', html.length)
 
     const text = stripHtml(html)
-    console.log('[fetch-recipe-url] stripped text length:', text.length)
+    const imageUrl = extractImageUrl(html)
+    console.log('[fetch-recipe-url] stripped text length:', text.length, '— imageUrl:', imageUrl)
 
     return new Response(
-      JSON.stringify({ text }),
+      JSON.stringify({ text, imageUrl }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
