@@ -234,13 +234,9 @@ function ImportSheet({ open, onClose }) {
           <IconImage />
           <div><div style={labelStyle}>Scan a photo</div><div style={descStyle}>Photo from your camera roll</div></div>
         </button>
-        <button style={{ ...rowStyle, opacity: 0.5, cursor: 'default' }}>
+        <button style={{ ...rowStyle, opacity: 0.5, cursor: 'default', borderBottom: 'none' }}>
           <IconPlay />
           <div><div style={labelStyle}>Import from video</div><div style={descStyle}>Coming soon</div></div>
-        </button>
-        <button style={{ ...rowStyle, opacity: 0.5, cursor: 'default', borderBottom: 'none' }}>
-          <IconCamera />
-          <div><div style={labelStyle}>Take a photo</div><div style={descStyle}>Coming soon</div></div>
         </button>
       </div>
     )

@@ -4,7 +4,7 @@ import { Sheet } from '../components/Sheet'
 import { getMealtimeIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
 import { useMealSlots } from '../hooks/useMealSlots'
-import { getWeekStart, getWeekDays, toDateString, formatDay, isPast } from '../lib/dates'
+import { toDateString, formatDay, isPast } from '../lib/dates'
 
 const MEALTIMES = [
   { id: 'breakfast', label: 'Breakfast', Icon: getMealtimeIcon('breakfast') },
@@ -125,8 +125,12 @@ export function Plan() {
   const { getSlotsForDate, addSlot, removeSlot } = useMealSlots()
 
   const today = new Date()
-  const weekStart = getWeekStart(today)
-  const days = getWeekDays(weekStart)
+  today.setHours(0, 0, 0, 0)
+  const days = Array.from({ length: 22 }, (_, i) => {
+    const d = new Date(today)
+    d.setDate(d.getDate() - 7 + i)
+    return d
+  })
   const todayStr = toDateString(today)
 
   const initialDate = searchParams.get('date') || todayStr
@@ -134,9 +138,8 @@ export function Plan() {
   const dayScrollRef = useRef(null)
 
   useEffect(() => {
-    const idx = days.findIndex(d => toDateString(d) === todayStr)
-    if (dayScrollRef.current && idx >= 0) {
-      dayScrollRef.current.scrollLeft = (idx * 90) - 20
+    if (dayScrollRef.current) {
+      dayScrollRef.current.scrollLeft = (7 * 90) - 20
     }
   }, [])
 

@@ -11,6 +11,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <title>Mise en Place</title>
+    <script>
+      (function(){
+        var t=localStorage.getItem('theme');
+        if(t==='dark')document.documentElement.setAttribute('data-theme','dark');
+        else if(t==='light')document.documentElement.setAttribute('data-theme','light');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
