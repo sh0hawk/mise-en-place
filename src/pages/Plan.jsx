@@ -4,7 +4,7 @@ import { Sheet } from '../components/Sheet'
 import { getMealtimeIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
 import { useMealSlots } from '../hooks/useMealSlots'
-import { toDateString, formatDay, isPast } from '../lib/dates'
+import { getWeekStart, toDateString, formatDay, isPast } from '../lib/dates'
 
 const MEALTIMES = [
   { id: 'breakfast', label: 'Breakfast', Icon: getMealtimeIcon('breakfast') },
@@ -126,9 +126,11 @@ export function Plan() {
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const days = Array.from({ length: 22 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(d.getDate() - 7 + i)
+  const prevWeekStart = new Date(getWeekStart(today))
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7)
+  const days = Array.from({ length: 21 }, (_, i) => {
+    const d = new Date(prevWeekStart)
+    d.setDate(d.getDate() + i)
     return d
   })
   const todayStr = toDateString(today)
@@ -139,7 +141,8 @@ export function Plan() {
 
   useEffect(() => {
     if (dayScrollRef.current) {
-      dayScrollRef.current.scrollLeft = (7 * 90) - 20
+      const el = dayScrollRef.current.querySelector('[data-today]')
+      if (el) el.scrollIntoView({ block: 'nearest', inline: 'center' })
     }
   }, [])
 
@@ -186,7 +189,7 @@ export function Plan() {
             const isToday_d = ds === todayStr
             const past = isPast(day) && !isToday_d
             return (
-              <button key={ds} onClick={() => setSelectedDate(ds)} style={{
+              <button key={ds} data-today={isToday_d || undefined} onClick={() => setSelectedDate(ds)} style={{
                 flexShrink: 0, padding: '8px 14px', borderRadius: 'var(--radius-full)',
                 background: active ? 'var(--accent)' : 'transparent',
                 border: `1.5px solid ${active ? 'var(--accent)' : 'var(--border)'}`,
