@@ -355,7 +355,9 @@ export function Home() {
 
   const today = new Date()
   const weekStart = getWeekStart(today)
-  const days = getWeekDays(weekStart)
+  const nextWeekStart = new Date(weekStart)
+  nextWeekStart.setDate(nextWeekStart.getDate() + 7)
+  const days = [...getWeekDays(weekStart), ...getWeekDays(nextWeekStart)]
   const todayStr = toDateString(today)
 
   useEffect(() => {
@@ -426,6 +428,13 @@ export function Home() {
               </div>
             )
           })}
+          <div onClick={() => navigate(`/plan?date=${toDateString(nextWeekStart)}`)} style={{
+            background: 'transparent', border: '1.5px dashed var(--border)', borderRadius: 14,
+            padding: '12px 10px', width: 64, flexShrink: 0, cursor: 'pointer', opacity: 0.4,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.08em', lineHeight: 1.4, textAlign: 'center' }}>Next Week ›</span>
+          </div>
         </div>
       </div>
 
