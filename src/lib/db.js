@@ -167,14 +167,123 @@ export async function deleteShoppingItems(ids) {
 
 function guessCategory(ingredient) {
   const s = ingredient.toLowerCase()
-  if (/bread|sourdough|baguette|roll|loaf|bun|croissant|pita|tortilla|bagel/.test(s)) return 'Bakery'
-  if (/\b(ham|salami|prosciutto|pancetta|smoked salmon|deli|turkey breast|roast beef)\b/.test(s)) return 'Deli'
+
+  // Unambiguous categories first
   if (/frozen/.test(s)) return 'Frozen'
-  if (/beer|wine|\bjuice\b|soda|kombucha/.test(s)) return 'Beverages'
-  if (/chicken|beef|pork|lamb|\bfish\b|salmon|tuna|prawn|shrimp|mince|ground|steak|fillet|sausage|bacon/.test(s)) return 'Meat'
-  if (/milk|cream|butter|yoghurt|yogurt|cheese|ricotta|mozzarella|cheddar|parmesan|feta|\begg\b|\beggs\b/.test(s)) return 'Dairy'
-  if (/flour|sugar|baking|spice|cumin|paprika|\bsalt\b|\boil\b|vinegar|pasta|rice|canned|stock|sauce|honey|\boats\b|chia|maple|syrup|soy sauce|fish sauce|oyster sauce|nutmeg|vanilla|chilli|chili|seasoning/.test(s)) return 'Pantry'
-  return 'Produce'
+  if (/\b(ham|salami|prosciutto|pancetta|smoked salmon|deli|turkey breast|roast beef)\b/.test(s)) return 'Deli'
+  if (/\b(beer|wine|kombucha|soda|lemonade|sparkling water)\b/.test(s)) return 'Beverages'
+  if (/\bjuice\b/.test(s) && !/lemon juice|lime juice/.test(s)) return 'Beverages'
+
+  // Meat & seafood
+  if (/chicken|beef|pork|lamb|veal|duck|turkey|\bfish\b|salmon|tuna|cod|snapper|barramundi|trout|prawn|shrimp|crab|lobster|mussel|scallop|squid|anchov|sardine|mince|ground meat|steak|fillet|sausage|bacon|chorizo|brisket|ribs\b|osso/.test(s)) return 'Meat'
+
+  // Dairy & eggs
+  if (/\begg\b|\beggs\b|milk|cream\b|heavy cream|double cream|sour cream|crème|butter|ghee|yoghurt|yogurt|cheese|ricotta|mozzarella|cheddar|parmesan|parmigiano|feta|brie|camembert|gruyère|gruyere|mascarpone|cottage cheese|cream cheese/.test(s)) return 'Dairy'
+
+  // Bakery
+  if (/bread|sourdough|baguette|\broll\b|\bloaf\b|\bbun\b|croissant|pita|pitta|tortilla|bagel|naan|flatbread|focaccia|ciabatta/.test(s)) return 'Bakery'
+
+  // Context-sensitive: garlic
+  if (/garlic/.test(s)) return /powder|granule|dried|minced jar|paste/.test(s) ? 'Pantry' : 'Produce'
+
+  // Context-sensitive: ginger
+  if (/ginger/.test(s)) return /powder|dried|ground|crystallised|candied/.test(s) ? 'Pantry' : 'Produce'
+
+  // Context-sensitive: chilli / chili / pepper
+  if (/chilli|chili/.test(s)) return /powder|flakes|sauce|paste|dried|oil/.test(s) ? 'Pantry' : 'Produce'
+  if (/\bpepper\b/.test(s)) return /black|white|cayenne|cracked|ground|szechuan/.test(s) ? 'Pantry' : 'Produce'
+  if (/\bbell pepper\b|capsicum/.test(s)) return 'Produce'
+
+  // Context-sensitive: tomato
+  if (/tomato|tomatoes/.test(s)) return /paste|sauce|puree|crushed|canned|can of|tinned|sundried|sun-dried|ketchup/.test(s) ? 'Pantry' : 'Produce'
+
+  // Context-sensitive: lemon / lime
+  if (/\blemon\b|\blime\b/.test(s)) return /juice|zest|extract|curd|oil/.test(s) ? 'Pantry' : 'Produce'
+
+  // Context-sensitive: herbs — dried → Pantry, fresh → Produce
+  if (/\b(basil|thyme|oregano|rosemary|sage|tarragon|dill|chive|coriander|cilantro|parsley|mint|bay leaf|bay leaves)\b/.test(s))
+    return /dried|ground|powder/.test(s) ? 'Pantry' : 'Produce'
+
+  // Pantry — oils, fats, vinegars
+  if (/\boil\b|olive oil|vegetable oil|coconut oil|sesame oil|cooking spray/.test(s)) return 'Pantry'
+  if (/vinegar|balsamic/.test(s)) return 'Pantry'
+
+  // Pantry — salt, sugar, sweeteners
+  if (/\bsalt\b|sea salt|kosher salt|fleur de sel/.test(s)) return 'Pantry'
+  if (/\bsugar\b|brown sugar|caster sugar|icing sugar|powdered sugar|maple syrup|honey|agave|treacle|molasses/.test(s)) return 'Pantry'
+
+  // Pantry — spices & seasonings
+  if (/\bspice\b|cumin|paprika|turmeric|cinnamon|nutmeg|cardamom|allspice|clove|anise|caraway|coriander seed|mustard seed|fennel seed|five.spice|curry powder|garam masala|mixed spice|za'atar|sumac|smoked/.test(s)) return 'Pantry'
+  if (/\bseasoning\b|rub\b|herb mix|italian herbs|dried herbs/.test(s)) return 'Pantry'
+
+  // Pantry — sauces, condiments
+  if (/soy sauce|fish sauce|oyster sauce|hoisin|teriyaki|worcestershire|hot sauce|sriracha|tabasco|mustard|mayonnaise|ketchup|bbq sauce|tahini|miso|coconut aminos/.test(s)) return 'Pantry'
+
+  // Pantry — stock, broth, wine for cooking
+  if (/\bstock\b|\bbroth\b|bouillon|cooking wine|white wine\b|red wine\b/.test(s)) return 'Pantry'
+
+  // Pantry — canned / tinned goods, legumes
+  if (/canned|tinned|can of|\btin of\b|chickpea|lentil|kidney bean|black bean|cannellini|navy bean|\btofu\b|tempeh/.test(s)) return 'Pantry'
+
+  // Pantry — grains, pasta, rice, bread-related dry goods
+  if (/\bpasta\b|spaghetti|penne|rigatoni|fettuccine|linguine|gnocchi|\brice\b|quinoa|couscous|polenta|bulgur|barley|\boats\b|breadcrumb|panko/.test(s)) return 'Pantry'
+
+  // Pantry — baking
+  if (/flour|baking powder|baking soda|bicarbonate|yeast|cocoa|chocolate chip|vanilla|cornstarch|cornflour|arrowroot/.test(s)) return 'Pantry'
+
+  // Pantry — nuts, seeds, dried fruit, coconut
+  if (/almond|walnut|pecan|cashew|pistachio|hazelnut|pine nut|peanut|sesame seed|poppy seed|sunflower seed|pumpkin seed|flaxseed|chia|hemp seed|coconut milk|coconut cream|desiccated coconut|shredded coconut|coconut flake|raisin|sultana|currant|dried cranberry|dried apricot|prune/.test(s)) return 'Pantry'
+
+  // Pantry — cream of / gelatin / misc cooking
+  if (/cream of tartar|gelatine|gelatin|agar|xanthan/.test(s)) return 'Pantry'
+
+  // Produce — fresh vegetables
+  if (/onion|shallot|leek|spring onion|scallion|celery|carrot|potato|sweet potato|parsnip|turnip|swede|beetroot|beet|zucchini|courgette|eggplant|aubergine|broccoli|cauliflower|cabbage|kale|spinach|silverbeet|chard|lettuce|arugula|rocket|watercress|endive|radicchio|peas|green bean|snow pea|sugar snap|corn|asparagus|artichoke|fennel bulb|cucumber|radish|bok choy|pak choi|bean sprout|mushroom/.test(s)) return 'Produce'
+
+  // Produce — fresh fruit
+  if (/apple|pear|banana|mango|pineapple|strawberr|blueberr|raspberr|blackberr|grape|cherry|peach|plum|nectarine|apricot|watermelon|rockmelon|cantaloupe|melon|kiwi|passionfruit|pomegranate|fig|date\b/.test(s)) return 'Produce'
+
+  // Produce — citrus (whole fruit caught above)
+  if (/orange|grapefruit|mandarin|clementine|tangerine/.test(s)) return 'Produce'
+
+  return 'Pantry'
+}
+
+// ─── Ingredient fuzzy matching ────────────────────────────────────────────────
+
+const NORM_STRIP = new Set([
+  'fresh','dried','ground','whole','chopped','diced','sliced','minced','crushed',
+  'grated','shredded','peeled','trimmed','pitted','halved','quartered','roughly',
+  'finely','thinly','coarsely','lightly','heaped','heaping','packed','rinsed',
+  'drained','cooked','raw','large','small','medium','big','extra','organic',
+  'boneless','skinless','lean','thick','thin','ripe','unripe','frozen','canned',
+  'tinned','jar','can','bunch','handful','pinch','sprig','stalk','head','clove',
+  'piece','slice','strip','cube','chunk','a','an','the','of','and','or','with',
+])
+
+function normalizeIngredient(name) {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 1 && !NORM_STRIP.has(w))
+    .join(' ')
+    .trim()
+}
+
+function ingredientsMatch(a, b) {
+  const na = normalizeIngredient(a)
+  const nb = normalizeIngredient(b)
+  if (na === nb) return true
+  // One name's significant words are all contained in the other
+  const wa = new Set(na.split(' '))
+  const wb = new Set(nb.split(' '))
+  if ([...wa].every(w => wb.has(w))) return true
+  if ([...wb].every(w => wa.has(w))) return true
+  // First two significant words match
+  const fa = na.split(' ').slice(0, 2).join(' ')
+  const fb = nb.split(' ').slice(0, 2).join(' ')
+  if (fa.length >= 3 && fa === fb) return true
+  return false
 }
 
 // Quantity helpers — kept local to db.js so the shopping sync doesn't depend on
@@ -219,10 +328,10 @@ export async function syncRecipeIngredientsAdd(listId, recipe, currentItems) {
     const name = ing.item.trim().toLowerCase()
     const unit = (ing.unit || '').toLowerCase()
 
-    // Match by ingredient name. Skip rows that already list this recipe
+    // Match by ingredient name (fuzzy). Skip rows that already list this recipe
     // (same recipe added to multiple days → treated as separate entries).
     const existing = currentItems.find(item =>
-      item.ingredient.toLowerCase() === name &&
+      ingredientsMatch(item.ingredient, ing.item.trim()) &&
       !(item.source_recipe_ids || []).includes(recipe.id)
     )
 
@@ -283,7 +392,7 @@ export async function syncRecipeIngredientsRemove(recipe, currentItems) {
   for (const item of affected) {
     const newSourceIds = item.source_recipe_ids.filter(id => id !== recipe.id)
     const removedIng = recipe.ingredients.find(i =>
-      (i.item || '').trim().toLowerCase() === item.ingredient.toLowerCase()
+      ingredientsMatch(i.item || '', item.ingredient)
     )
 
     if (newSourceIds.length === 0 && !item.is_manual) {
