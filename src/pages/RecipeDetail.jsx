@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { SegmentControl } from '../components/SegmentControl'
 import { useAppData } from '../lib/AppContext'
@@ -39,6 +39,16 @@ export function RecipeDetail() {
   const { recipes, recipesLoading } = useAppData()
   const [tab, setTab] = useState('ingredients')
   const [scale, setScale] = useState(1)
+  const [isLandscape, setIsLandscape] = useState(
+    () => window.matchMedia('(orientation: landscape) and (min-width: 600px)').matches
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: landscape) and (min-width: 600px)')
+    const handler = e => setIsLandscape(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const recipe = recipes.find(r => r.id === id)
 
@@ -66,6 +76,68 @@ export function RecipeDetail() {
 
   const servings = Math.round((recipe.servings_base || 2) * scale)
 
+  const ingredientsList = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {(recipe.ingredients || []).map((ing, i, arr) => (
+        <div key={i} style={{
+          display: 'flex', alignItems: 'baseline', gap: 8,
+          padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
+        }}>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg2)', minWidth: 60, textAlign: 'right', flexShrink: 0 }}>
+            {formatQuantity(ing.quantity, scale)} {ing.unit}
+          </span>
+          <span style={{ fontSize: 15, color: 'var(--fg1)' }}>
+            {ing.item}
+            {ing.notes && <span style={{ color: 'var(--fg3)', fontSize: 13 }}> — {ing.notes}</span>}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+
+  const directionsList = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 }}>
+      {(recipe.directions || []).map((dir, i) => (
+        <div key={i} style={{ display: 'flex', gap: 14 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)',
+            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 13, fontWeight: 600, flexShrink: 0, marginTop: 2,
+          }}>
+            {dir.step || i + 1}
+          </div>
+          <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--fg1)', margin: 0, paddingTop: 4 }}>{dir.text}</p>
+        </div>
+      ))}
+    </div>
+  )
+
+  const notesSection = (recipe.source_label || recipe.author_notes || recipe.serving_suggestions) && (
+    <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
+      {recipe.source_label && (
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', display: 'block', marginBottom: 4 }}>Source</span>
+          {recipe.source_url
+            ? <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, color: 'var(--accent)' }}>{recipe.source_label}</a>
+            : <span style={{ fontSize: 15, color: 'var(--fg2)' }}>{recipe.source_label}</span>
+          }
+        </div>
+      )}
+      {recipe.author_notes && (
+        <div style={{ marginBottom: 12 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', display: 'block', marginBottom: 4 }}>Notes</span>
+          <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--fg2)', margin: 0 }}>{recipe.author_notes}</p>
+        </div>
+      )}
+      {recipe.serving_suggestions && (
+        <div>
+          <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', display: 'block', marginBottom: 4 }}>Serving Suggestions</span>
+          <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--fg2)', margin: 0 }}>{recipe.serving_suggestions}</p>
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--bg)', overflow: 'hidden' }}>
       {/* Top Nav */}
@@ -85,143 +157,112 @@ export function RecipeDetail() {
         </button>
       </div>
 
-      <div className="scroll-y" style={{ flex: 1, paddingBottom: `calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px))` }}>
-        {/* Hero */}
-        <div style={{
-          height: 220, flexShrink: 0,
-          background: recipe.photo_url ? `url(${recipe.photo_url}) center/cover no-repeat` : 'var(--subtle)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          {!recipe.photo_url && <span style={{ fontSize: 56, opacity: 0.3 }}>🍽</span>}
+      {isLandscape ? (
+        /* Landscape: two-pane side-by-side */
+        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+          {/* Left pane — 1/3 — ingredients + scale */}
+          <div className="scroll-y" style={{
+            flex: '0 0 33.333%', padding: '16px 20px',
+            paddingBottom: `calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px))`,
+            borderRight: '1px solid var(--border)',
+          }}>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 300, color: 'var(--fg1)', letterSpacing: '-0.02em', lineHeight: 1.2, marginBottom: 14 }}>
+              {recipe.name}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <ScaleStepper scale={scale} onChange={setScale} />
+            </div>
+            {ingredientsList}
+          </div>
+          {/* Right pane — 2/3 — directions */}
+          <div className="scroll-y" style={{
+            flex: 1, padding: '16px 20px',
+            paddingBottom: `calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px))`,
+          }}>
+            {directionsList}
+            {notesSection}
+          </div>
         </div>
-
-        <div style={{ padding: '20px 20px 0' }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-            {recipe.categories?.join(' · ')}
-          </div>
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 300, color: 'var(--fg1)', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 14 }}>
-            {recipe.name}
-          </div>
-
-          {/* Meta strip */}
-          <div style={{ display: 'flex', background: 'var(--elevated)', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', marginBottom: 16 }}>
-            {[
-              { label: 'Prep', value: recipe.prep_time || '—' },
-              { label: 'Cook', value: recipe.cook_time || '—' },
-              { label: 'Serves', value: `${servings}` },
-              recipe.yield ? { label: 'Yield', value: recipe.yield } : null,
-            ].filter(Boolean).map((m, i, arr) => (
-              <div key={m.label} style={{ flex: 1, padding: '10px 8px', textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-mono)' }}>{m.value}</div>
-                <div style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>{m.label}</div>
-              </div>
-            ))}
+      ) : (
+        /* Portrait: original single-column layout */
+        <div className="scroll-y" style={{ flex: 1, paddingBottom: `calc(var(--nav-bottom-height) + env(safe-area-inset-bottom, 0px))` }}>
+          {/* Hero */}
+          <div style={{
+            height: 220, flexShrink: 0,
+            background: recipe.photo_url ? `url(${recipe.photo_url}) center/cover no-repeat` : 'var(--subtle)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            {!recipe.photo_url && <span style={{ fontSize: 56, opacity: 0.3 }}>🍽</span>}
           </div>
 
-          {/* Scale */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)' }}>Scale recipe</span>
-            <ScaleStepper scale={scale} onChange={setScale} />
-          </div>
+          <div style={{ padding: '20px 20px 0' }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+              {recipe.categories?.join(' · ')}
+            </div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 300, color: 'var(--fg1)', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 14 }}>
+              {recipe.name}
+            </div>
 
-          {/* Nutrition */}
-          {recipe.nutrition && (
-            <div style={{ background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 20 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', marginBottom: 10 }}>
-                Nutrition {recipe.nutrition.is_estimated && '(estimated)'}
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-                {[
-                  { label: 'Calories', value: Math.round(recipe.nutrition.calories * scale), unit: 'kcal' },
-                  { label: 'Protein', value: Math.round(recipe.nutrition.protein * scale), unit: 'g' },
-                  { label: 'Fat', value: Math.round(recipe.nutrition.fat * scale), unit: 'g' },
-                  { label: 'Carbs', value: Math.round(recipe.nutrition.carbs * scale), unit: 'g' },
-                ].map(n => (
-                  <div key={n.label} style={{ textAlign: 'center' }}>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 500, color: 'var(--fg1)' }}>
-                      {n.value}<span style={{ fontSize: 11, color: 'var(--fg3)', fontFamily: 'var(--font-ui)', marginLeft: 2 }}>{n.unit}</span>
+            {/* Meta strip */}
+            <div style={{ display: 'flex', background: 'var(--elevated)', borderRadius: 'var(--radius-md)', overflow: 'hidden', border: '1px solid var(--border)', marginBottom: 16 }}>
+              {[
+                { label: 'Prep', value: recipe.prep_time || '—' },
+                { label: 'Cook', value: recipe.cook_time || '—' },
+                { label: 'Serves', value: `${servings}` },
+                recipe.yield ? { label: 'Yield', value: recipe.yield } : null,
+              ].filter(Boolean).map((m, i, arr) => (
+                <div key={m.label} style={{ flex: 1, padding: '10px 8px', textAlign: 'center', borderRight: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-mono)' }}>{m.value}</div>
+                  <div style={{ fontSize: 10, color: 'var(--fg3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 2 }}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Scale */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)' }}>Scale recipe</span>
+              <ScaleStepper scale={scale} onChange={setScale} />
+            </div>
+
+            {/* Nutrition */}
+            {recipe.nutrition && (
+              <div style={{ background: 'var(--elevated)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', marginBottom: 10 }}>
+                  Nutrition {recipe.nutrition.is_estimated && '(estimated)'}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {[
+                    { label: 'Calories', value: Math.round(recipe.nutrition.calories * scale), unit: 'kcal' },
+                    { label: 'Protein', value: Math.round(recipe.nutrition.protein * scale), unit: 'g' },
+                    { label: 'Fat', value: Math.round(recipe.nutrition.fat * scale), unit: 'g' },
+                    { label: 'Carbs', value: Math.round(recipe.nutrition.carbs * scale), unit: 'g' },
+                  ].map(n => (
+                    <div key={n.label} style={{ textAlign: 'center' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 500, color: 'var(--fg1)' }}>
+                        {n.value}<span style={{ fontSize: 11, color: 'var(--fg3)', fontFamily: 'var(--font-ui)', marginLeft: 2 }}>{n.unit}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--fg3)', marginTop: 2 }}>{n.label}</div>
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--fg3)', marginTop: 2 }}>{n.label}</div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Tab switcher */}
-          <SegmentControl
-            options={[{ value: 'ingredients', label: 'Ingredients' }, { value: 'directions', label: 'Directions' }]}
-            value={tab}
-            onChange={setTab}
-            style={{ width: '100%', marginBottom: 16 }}
-          />
+            {/* Tab switcher */}
+            <SegmentControl
+              options={[{ value: 'ingredients', label: 'Ingredients' }, { value: 'directions', label: 'Directions' }]}
+              value={tab}
+              onChange={setTab}
+              style={{ width: '100%', marginBottom: 16 }}
+            />
 
-          {/* Ingredients */}
-          {tab === 'ingredients' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {(recipe.ingredients || []).map((ing, i, arr) => (
-                <div key={i} style={{
-                  display: 'flex', alignItems: 'baseline', gap: 8,
-                  padding: '10px 0', borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
-                }}>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--fg2)', minWidth: 60, textAlign: 'right', flexShrink: 0 }}>
-                    {formatQuantity(ing.quantity, scale)} {ing.unit}
-                  </span>
-                  <span style={{ fontSize: 15, color: 'var(--fg1)' }}>
-                    {ing.item}
-                    {ing.notes && <span style={{ color: 'var(--fg3)', fontSize: 13 }}> — {ing.notes}</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
+            {tab === 'ingredients' && ingredientsList}
+            {tab === 'directions' && directionsList}
 
-          {/* Directions */}
-          {tab === 'directions' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingBottom: 8 }}>
-              {(recipe.directions || []).map((dir, i) => (
-                <div key={i} style={{ display: 'flex', gap: 14 }}>
-                  <div style={{
-                    width: 28, height: 28, borderRadius: '50%', background: 'var(--accent)',
-                    color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 600, flexShrink: 0, marginTop: 2,
-                  }}>
-                    {dir.step || i + 1}
-                  </div>
-                  <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--fg1)', margin: 0, paddingTop: 4 }}>{dir.text}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Source + notes */}
-          {(recipe.source_label || recipe.author_notes || recipe.serving_suggestions) && (
-            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)' }}>
-              {recipe.source_label && (
-                <div style={{ marginBottom: 12 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', display: 'block', marginBottom: 4 }}>Source</span>
-                  {recipe.source_url
-                    ? <a href={recipe.source_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 15, color: 'var(--accent)' }}>{recipe.source_label}</a>
-                    : <span style={{ fontSize: 15, color: 'var(--fg2)' }}>{recipe.source_label}</span>
-                  }
-                </div>
-              )}
-              {recipe.author_notes && (
-                <div style={{ marginBottom: 12 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', display: 'block', marginBottom: 4 }}>Notes</span>
-                  <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--fg2)', margin: 0 }}>{recipe.author_notes}</p>
-                </div>
-              )}
-              {recipe.serving_suggestions && (
-                <div>
-                  <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--fg3)', display: 'block', marginBottom: 4 }}>Serving Suggestions</span>
-                  <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--fg2)', margin: 0 }}>{recipe.serving_suggestions}</p>
-                </div>
-              )}
-            </div>
-          )}
+            {notesSection}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

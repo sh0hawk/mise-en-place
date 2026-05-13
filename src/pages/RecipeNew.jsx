@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation, useParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Input, Textarea } from '../components/Input'
@@ -6,6 +6,7 @@ import { COOKBOOK_CATEGORIES } from '../lib/demo-data'
 import { getCookbookIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
 import { formatQuantity } from '../lib/fractions'
+import { supabase } from '../lib/supabase'
 
 const BLANK_RECIPE = {
   name: '',
@@ -178,7 +179,28 @@ export function RecipeNew() {
   const [saveError, setSaveError]       = useState(null)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting]         = useState(false)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const fileInputRef = useRef(null)
   const { addRecipe, editRecipe, removeRecipe, recipes } = useAppData()
+
+  async function handlePhotoSelect(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoUploading(true)
+    try {
+      const ext = file.name.split('.').pop() || 'jpg'
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('recipe-photos').upload(path, file)
+      if (uploadError) throw uploadError
+      const { data } = supabase.storage.from('recipe-photos').getPublicUrl(path)
+      setField('photo_url', data.publicUrl)
+    } catch (err) {
+      console.error('photo upload', err)
+    } finally {
+      setPhotoUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   useEffect(() => {
     if (!isEditing) return
@@ -323,6 +345,56 @@ export function RecipeNew() {
 
         <div style={{ padding: '20px 20px 0' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Photo */}
+            <div>
+              <FieldLabel>Photo (optional)</FieldLabel>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handlePhotoSelect}
+              />
+              <div
+                onClick={() => !photoUploading && fileInputRef.current?.click()}
+                style={{
+                  height: 160, borderRadius: 'var(--radius-md)', overflow: 'hidden',
+                  cursor: photoUploading ? 'default' : 'pointer', position: 'relative',
+                  background: recipe.photo_url
+                    ? `url(${recipe.photo_url}) center/cover no-repeat`
+                    : 'var(--subtle)',
+                  border: recipe.photo_url ? 'none' : '2px dashed var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {recipe.photo_url ? (
+                  <div style={{
+                    position: 'absolute', bottom: 8, right: 8,
+                    background: 'rgba(0,0,0,0.55)', color: '#fff',
+                    fontSize: 12, fontWeight: 600, padding: '5px 10px',
+                    borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-ui)',
+                    backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+                  }}>
+                    {photoUploading ? 'Uploading…' : 'Change photo'}
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--fg3)', pointerEvents: 'none' }}>
+                    {photoUploading ? (
+                      <div style={{ fontSize: 14, fontFamily: 'var(--font-ui)' }}>Uploading…</div>
+                    ) : (
+                      <>
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 8px', display: 'block', opacity: 0.5 }}>
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                          <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                        <div style={{ fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-ui)' }}>Add photo</div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Name */}
             <div>
               <FieldLabel uncertain={u('name')}>Recipe name *</FieldLabel>
