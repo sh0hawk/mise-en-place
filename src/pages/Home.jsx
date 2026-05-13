@@ -15,12 +15,31 @@ import {
 } from '../lib/dates'
 
 function DayCard({ date, recipes = [], active, past, onClick }) {
+  const touchStartX = useRef(null)
+  const didScroll = useRef(false)
+
+  function handleTouchStart(e) {
+    touchStartX.current = e.touches[0].clientX
+    didScroll.current = false
+  }
+
+  function handleTouchMove(e) {
+    if (touchStartX.current !== null && Math.abs(e.touches[0].clientX - touchStartX.current) > 8) {
+      didScroll.current = true
+    }
+  }
+
+  function handleClick() {
+    if (didScroll.current) return
+    onClick?.()
+  }
+
   const day = date.toLocaleDateString('en-US', { weekday: 'short' })
   const num = date.getDate()
 
   if (active) {
     return (
-      <div onClick={onClick} style={{
+      <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onClick={handleClick} style={{
         background: 'var(--accent)', borderRadius: 14, padding: '12px 14px',
         width: 120, flexShrink: 0, cursor: 'pointer', color: '#fff',
         boxShadow: 'var(--shadow-md)',
@@ -40,7 +59,7 @@ function DayCard({ date, recipes = [], active, past, onClick }) {
   }
 
   return (
-    <div onClick={onClick} style={{
+    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onClick={handleClick} style={{
       background: past ? 'transparent' : 'var(--elevated)',
       border: `1.5px ${past ? 'dashed' : 'solid'} var(--border)`,
       borderRadius: 14, padding: '12px 14px', width: 110,

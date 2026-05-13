@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { Sheet } from '../components/Sheet'
 import { getMealtimeIcon } from '../components/CookbookIcons'
 import { useAppData } from '../lib/AppContext'
@@ -13,6 +13,62 @@ const MEALTIMES = [
   { id: 'dessert',   label: 'Dessert',   Icon: getMealtimeIcon('dessert') },
   { id: 'snack',     label: 'Snack',     Icon: getMealtimeIcon('snack') },
 ]
+
+function RecipeRow({ recipe, locked, onRemove }) {
+  const touchStartY = useRef(null)
+
+  function handleTouchStart(e) {
+    touchStartY.current = e.touches[0].clientY
+    console.log('[RecipeRow] touchstart — recipe.id:', recipe.id, 'name:', recipe.name)
+  }
+
+  function handleTouchEnd(e) {
+    const startY = touchStartY.current
+    touchStartY.current = null
+    if (startY === null) {
+      console.log('[RecipeRow] touchend — no touchstart recorded, skipping')
+      return
+    }
+    const dy = Math.abs(e.changedTouches[0].clientY - startY)
+    console.log('[RecipeRow] touchend — dy:', dy, 'recipe.id:', recipe.id)
+    // Link handles the navigation; just log here to confirm events fire
+  }
+
+  console.log('[RecipeRow] render — recipe.id:', recipe.id, 'recipe.name:', recipe.name)
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+      {/*
+        Using Link (<a href>) instead of a button+onClick so iOS Safari can
+        follow the href natively at the OS level. onClick on a <button> inside
+        a -webkit-overflow-scrolling:touch scroller can be silently dropped;
+        anchor hrefs are followed even when JS click events are suppressed.
+      */}
+      <Link
+        to={`/recipes/${recipe.id}`}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onClick={() => console.log('[RecipeRow] click — recipe.id:', recipe.id)}
+        style={{
+          display: 'block', flex: 1, padding: '6px 0',
+          fontSize: 14, fontWeight: 500, color: 'var(--fg1)',
+          fontFamily: 'var(--font-ui)', textDecoration: 'none',
+          touchAction: 'manipulation',
+        }}
+      >
+        {recipe.name}
+      </Link>
+      {!locked && (
+        <button
+          onClick={e => { e.stopPropagation(); onRemove(recipe.slotId) }}
+          style={{ fontSize: 18, color: 'var(--fg3)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px', lineHeight: 1 }}
+        >
+          ×
+        </button>
+      )}
+    </div>
+  )
+}
 
 function SlotCard({ mealtime, recipes, locked, onAdd, onRemove }) {
   const hasRecipes = recipes && recipes.length > 0
@@ -46,14 +102,7 @@ function SlotCard({ mealtime, recipes, locked, onAdd, onRemove }) {
         )}
       </div>
       {recipes.map(r => (
-        <div key={r.slotId} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
-          <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--fg1)', flex: 1, fontFamily: 'var(--font-ui)' }}>{r.name}</span>
-          {!locked && (
-            <button onClick={() => onRemove(r.slotId)} style={{ fontSize: 14, color: 'var(--fg3)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1 }}>
-              ×
-            </button>
-          )}
-        </div>
+        <RecipeRow key={r.slotId} recipe={r} locked={locked} onRemove={onRemove} />
       ))}
     </div>
   )
