@@ -165,9 +165,7 @@ export async function deleteShoppingItems(ids) {
 
 // ─── Ingredient → shopping list ──────────────────────────────────────────────
 
-function guessCategory(ingredient) {
-  const s = ingredient.toLowerCase()
-
+function categorySingle(s) {
   // Unambiguous categories first
   if (/frozen/.test(s)) return 'Frozen'
   if (/\b(ham|salami|prosciutto|pancetta|smoked salmon|deli|turkey breast|roast beef)\b/.test(s)) return 'Deli'
@@ -183,38 +181,46 @@ function guessCategory(ingredient) {
   // Bakery
   if (/bread|sourdough|baguette|\broll\b|\bloaf\b|\bbun\b|croissant|pita|pitta|tortilla|bagel|naan|flatbread|focaccia|ciabatta/.test(s)) return 'Bakery'
 
+  // Pantry — anything with these modifiers is shelf-stable regardless of base ingredient
+  if (/\bdried\b|\bpowder\b|\bground\b|\bseasoning\b|\bspice\b/.test(s)) return 'Pantry'
+
+  // Pantry — explicit spices & herbs (named directly, always Pantry)
+  if (/\b(black pepper|white pepper|red pepper|cayenne|paprika|cumin|coriander|turmeric|cinnamon|nutmeg|cloves?|cardamom|allspice|anise|caraway|fennel seed|mustard seed|sumac|za.atar|five.spice|curry powder|chili powder|chilli powder|garam masala|italian seasoning|mixed herbs|onion powder|garlic powder)\b/.test(s)) return 'Pantry'
+
+  // Pantry — salt (all forms)
+  if (/\bsalt\b|kosher salt|sea salt|fleur de sel|table salt/.test(s)) return 'Pantry'
+
+  // Pantry — water
+  if (/\bwater\b/.test(s)) return 'Pantry'
+
   // Context-sensitive: garlic
-  if (/garlic/.test(s)) return /powder|granule|dried|minced jar|paste/.test(s) ? 'Pantry' : 'Produce'
+  if (/garlic/.test(s)) return /powder|granule|minced jar|paste/.test(s) ? 'Pantry' : 'Produce'
 
   // Context-sensitive: ginger
-  if (/ginger/.test(s)) return /powder|dried|ground|crystallised|candied/.test(s) ? 'Pantry' : 'Produce'
+  if (/ginger/.test(s)) return /crystallised|candied/.test(s) ? 'Pantry' : 'Produce'
 
-  // Context-sensitive: chilli / chili / pepper
-  if (/chilli|chili/.test(s)) return /powder|flakes|sauce|paste|dried|oil/.test(s) ? 'Pantry' : 'Produce'
-  if (/\bpepper\b/.test(s)) return /black|white|cayenne|cracked|ground|szechuan/.test(s) ? 'Pantry' : 'Produce'
+  // Context-sensitive: chilli / chili
+  if (/chilli|chili/.test(s)) return /powder|flakes|sauce|paste|oil/.test(s) ? 'Pantry' : 'Produce'
+
+  // Context-sensitive: pepper (plain "pepper" → Pantry; bell pepper / capsicum → Produce)
   if (/\bbell pepper\b|capsicum/.test(s)) return 'Produce'
+  if (/\bpepper\b/.test(s)) return 'Pantry'
 
   // Context-sensitive: tomato
   if (/tomato|tomatoes/.test(s)) return /paste|sauce|puree|crushed|canned|can of|tinned|sundried|sun-dried|ketchup/.test(s) ? 'Pantry' : 'Produce'
 
   // Context-sensitive: lemon / lime
-  if (/\blemon\b|\blime\b/.test(s)) return /juice|zest|extract|curd|oil/.test(s) ? 'Pantry' : 'Produce'
+  if (/\blemon\b|\blime\b/.test(s)) return /juice|zest|extract|curd/.test(s) ? 'Pantry' : 'Produce'
 
-  // Context-sensitive: herbs — dried → Pantry, fresh → Produce
-  if (/\b(basil|thyme|oregano|rosemary|sage|tarragon|dill|chive|coriander|cilantro|parsley|mint|bay leaf|bay leaves)\b/.test(s))
-    return /dried|ground|powder/.test(s) ? 'Pantry' : 'Produce'
+  // Context-sensitive: herbs — named without "dried/ground/powder" → Produce (caught above if dried)
+  if (/\b(basil|thyme|oregano|rosemary|sage|tarragon|dill|chive|coriander|cilantro|parsley|mint|bay leaf|bay leaves)\b/.test(s)) return 'Produce'
 
   // Pantry — oils, fats, vinegars
   if (/\boil\b|olive oil|vegetable oil|coconut oil|sesame oil|cooking spray/.test(s)) return 'Pantry'
   if (/vinegar|balsamic/.test(s)) return 'Pantry'
 
-  // Pantry — salt, sugar, sweeteners
-  if (/\bsalt\b|sea salt|kosher salt|fleur de sel/.test(s)) return 'Pantry'
+  // Pantry — sugar, sweeteners
   if (/\bsugar\b|brown sugar|caster sugar|icing sugar|powdered sugar|maple syrup|honey|agave|treacle|molasses/.test(s)) return 'Pantry'
-
-  // Pantry — spices & seasonings
-  if (/\bspice\b|cumin|paprika|turmeric|cinnamon|nutmeg|cardamom|allspice|clove|anise|caraway|coriander seed|mustard seed|fennel seed|five.spice|curry powder|garam masala|mixed spice|za'atar|sumac|smoked/.test(s)) return 'Pantry'
-  if (/\bseasoning\b|rub\b|herb mix|italian herbs|dried herbs/.test(s)) return 'Pantry'
 
   // Pantry — sauces, condiments
   if (/soy sauce|fish sauce|oyster sauce|hoisin|teriyaki|worcestershire|hot sauce|sriracha|tabasco|mustard|mayonnaise|ketchup|bbq sauce|tahini|miso|coconut aminos/.test(s)) return 'Pantry'
@@ -225,7 +231,7 @@ function guessCategory(ingredient) {
   // Pantry — canned / tinned goods, legumes
   if (/canned|tinned|can of|\btin of\b|chickpea|lentil|kidney bean|black bean|cannellini|navy bean|\btofu\b|tempeh/.test(s)) return 'Pantry'
 
-  // Pantry — grains, pasta, rice, bread-related dry goods
+  // Pantry — grains, pasta, rice, dry goods
   if (/\bpasta\b|spaghetti|penne|rigatoni|fettuccine|linguine|gnocchi|\brice\b|quinoa|couscous|polenta|bulgur|barley|\boats\b|breadcrumb|panko/.test(s)) return 'Pantry'
 
   // Pantry — baking
@@ -234,8 +240,8 @@ function guessCategory(ingredient) {
   // Pantry — nuts, seeds, dried fruit, coconut
   if (/almond|walnut|pecan|cashew|pistachio|hazelnut|pine nut|peanut|sesame seed|poppy seed|sunflower seed|pumpkin seed|flaxseed|chia|hemp seed|coconut milk|coconut cream|desiccated coconut|shredded coconut|coconut flake|raisin|sultana|currant|dried cranberry|dried apricot|prune/.test(s)) return 'Pantry'
 
-  // Pantry — cream of / gelatin / misc cooking
-  if (/cream of tartar|gelatine|gelatin|agar|xanthan/.test(s)) return 'Pantry'
+  // Pantry — misc cooking
+  if (/cream of tartar|gelatine|gelatin|agar|xanthan|smoked/.test(s)) return 'Pantry'
 
   // Produce — fresh vegetables
   if (/onion|shallot|leek|spring onion|scallion|celery|carrot|potato|sweet potato|parsnip|turnip|swede|beetroot|beet|zucchini|courgette|eggplant|aubergine|broccoli|cauliflower|cabbage|kale|spinach|silverbeet|chard|lettuce|arugula|rocket|watercress|endive|radicchio|peas|green bean|snow pea|sugar snap|corn|asparagus|artichoke|fennel bulb|cucumber|radish|bok choy|pak choi|bean sprout|mushroom/.test(s)) return 'Produce'
@@ -243,8 +249,27 @@ function guessCategory(ingredient) {
   // Produce — fresh fruit
   if (/apple|pear|banana|mango|pineapple|strawberr|blueberr|raspberr|blackberr|grape|cherry|peach|plum|nectarine|apricot|watermelon|rockmelon|cantaloupe|melon|kiwi|passionfruit|pomegranate|fig|date\b/.test(s)) return 'Produce'
 
-  // Produce — citrus (whole fruit caught above)
+  // Produce — citrus
   if (/orange|grapefruit|mandarin|clementine|tangerine/.test(s)) return 'Produce'
+
+  return null
+}
+
+function guessCategory(ingredient) {
+  const s = ingredient.toLowerCase()
+
+  // Try the whole string first
+  const direct = categorySingle(s)
+  if (direct) return direct
+
+  // Split on "and" / "/" and try each part; use the first part that resolves
+  const parts = s.split(/\s+and\s+|\//).map(p => p.trim()).filter(Boolean)
+  if (parts.length > 1) {
+    for (const part of parts) {
+      const cat = categorySingle(part)
+      if (cat) return cat
+    }
+  }
 
   return 'Pantry'
 }
