@@ -184,18 +184,28 @@ export function RecipeNew() {
   const { addRecipe, editRecipe, removeRecipe, recipes } = useAppData()
 
   async function handlePhotoSelect(e) {
+    console.log('[photo] onChange fired — files:', e.target.files?.length, e.target.files)
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      console.log('[photo] no file selected — aborting')
+      return
+    }
+    console.log('[photo] file selected —', { name: file.name, size: file.size, type: file.type })
     setPhotoUploading(true)
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
       const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-      const { error: uploadError } = await supabase.storage.from('recipe-photos').upload(path, file)
+      console.log('[photo] uploading to bucket=recipe-photos path=', path)
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('recipe-photos')
+        .upload(path, file, { contentType: file.type || 'image/jpeg' })
+      console.log('[photo] upload result — data:', uploadData, 'error:', uploadError)
       if (uploadError) throw uploadError
-      const { data } = supabase.storage.from('recipe-photos').getPublicUrl(path)
-      setField('photo_url', data.publicUrl)
+      const { data: urlData } = supabase.storage.from('recipe-photos').getPublicUrl(path)
+      console.log('[photo] public URL:', urlData.publicUrl)
+      setField('photo_url', urlData.publicUrl)
     } catch (err) {
-      console.error('photo upload', err)
+      console.error('[photo] upload failed:', err?.message || err, err)
     } finally {
       setPhotoUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -348,28 +358,24 @@ export function RecipeNew() {
             {/* Photo */}
             <div>
               <FieldLabel>Photo (optional)</FieldLabel>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handlePhotoSelect}
-              />
-              <div
-                onClick={() => !photoUploading && fileInputRef.current?.click()}
-                style={{
-                  height: 160, borderRadius: 'var(--radius-md)', overflow: 'hidden',
-                  cursor: photoUploading ? 'default' : 'pointer', position: 'relative',
-                  background: recipe.photo_url
-                    ? `url(${recipe.photo_url}) center/cover no-repeat`
-                    : 'var(--subtle)',
-                  border: recipe.photo_url ? 'none' : '2px dashed var(--border)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}
-              >
+              {/*
+                iOS Safari blocks programmatic .click() on display:none inputs.
+                Instead, position the input as a transparent overlay covering the
+                tile so the user directly taps the <input> element — always allowed.
+              */}
+              <div style={{
+                height: 160, borderRadius: 'var(--radius-md)', overflow: 'hidden',
+                position: 'relative',
+                background: recipe.photo_url
+                  ? `url(${recipe.photo_url}) center/cover no-repeat`
+                  : 'var(--subtle)',
+                border: recipe.photo_url ? 'none' : '2px dashed var(--border)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {/* Visible content — pointer-events:none so taps fall through to input */}
                 {recipe.photo_url ? (
                   <div style={{
-                    position: 'absolute', bottom: 8, right: 8,
+                    position: 'absolute', bottom: 8, right: 8, pointerEvents: 'none',
                     background: 'rgba(0,0,0,0.55)', color: '#fff',
                     fontSize: 12, fontWeight: 600, padding: '5px 10px',
                     borderRadius: 'var(--radius-sm)', fontFamily: 'var(--font-ui)',
@@ -392,6 +398,19 @@ export function RecipeNew() {
                     )}
                   </div>
                 )}
+                {/* Transparent overlay — directly tappable by the user on iOS */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  disabled={photoUploading}
+                  onChange={handlePhotoSelect}
+                  style={{
+                    position: 'absolute', inset: 0,
+                    width: '100%', height: '100%',
+                    opacity: 0, cursor: 'pointer',
+                  }}
+                />
               </div>
             </div>
 
