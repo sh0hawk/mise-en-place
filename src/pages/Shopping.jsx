@@ -83,6 +83,7 @@ function AddItemSheet({ open, onClose, onAdd }) {
 export function Shopping() {
   const [addOpen, setAddOpen] = useState(false)
   const [showChecked, setShowChecked] = useState(true)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   const {
     shoppingItems,
@@ -92,7 +93,13 @@ export function Shopping() {
     toggleShoppingItem,
     addShoppingItem,
     clearCheckedItems,
+    clearAllItems,
   } = useAppData()
+
+  async function handleClearAll() {
+    await clearAllItems()
+    setConfirmClear(false)
+  }
 
   const grouped = SHOPPING_CATEGORIES_ORDER.reduce((acc, cat) => {
     const catItems = shoppingItems.filter(i => i.category === cat)
@@ -116,24 +123,54 @@ export function Shopping() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <span style={{ fontSize: 22, fontWeight: 600, color: 'var(--fg1)', fontFamily: 'var(--font-ui)' }}>Shopping</span>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {shoppingChecked > 0 && (
-              <button onClick={clearCheckedItems} style={{
-                fontSize: 13, color: 'var(--error)', background: 'var(--error-bg)',
-                border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 10px',
-                cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 500,
-              }}>
-                Clear checked
-              </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {confirmClear ? (
+              <>
+                <button onClick={() => setConfirmClear(false)} style={{
+                  fontSize: 13, color: 'var(--fg2)', background: 'var(--subtle)',
+                  border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 10px',
+                  cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 500,
+                }}>
+                  Cancel
+                </button>
+                <button onClick={handleClearAll} style={{
+                  fontSize: 13, color: '#B34040', background: '#FAE8E8',
+                  border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 10px',
+                  cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 600,
+                }}>
+                  Clear all
+                </button>
+              </>
+            ) : (
+              <>
+                {shoppingChecked > 0 && (
+                  <button onClick={clearCheckedItems} style={{
+                    fontSize: 13, color: 'var(--error)', background: 'var(--error-bg)',
+                    border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 10px',
+                    cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 500,
+                  }}>
+                    Clear checked
+                  </button>
+                )}
+                {shoppingTotal > 0 && (
+                  <button onClick={() => setConfirmClear(true)} style={{
+                    fontSize: 13, color: '#B34040', background: '#FAE8E8',
+                    border: 'none', borderRadius: 'var(--radius-sm)', padding: '5px 10px',
+                    cursor: 'pointer', fontFamily: 'var(--font-ui)', fontWeight: 500,
+                  }}>
+                    Clear list
+                  </button>
+                )}
+                <button onClick={() => setAddOpen(true)} style={{
+                  width: 36, height: 36, borderRadius: 'var(--radius-md)',
+                  background: 'var(--accent)', color: '#fff', border: 'none',
+                  cursor: 'pointer', fontSize: 20, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  +
+                </button>
+              </>
             )}
-            <button onClick={() => setAddOpen(true)} style={{
-              width: 36, height: 36, borderRadius: 'var(--radius-md)',
-              background: 'var(--accent)', color: '#fff', border: 'none',
-              cursor: 'pointer', fontSize: 20, display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-            }}>
-              +
-            </button>
           </div>
         </div>
 

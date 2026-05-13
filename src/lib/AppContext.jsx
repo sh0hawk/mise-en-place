@@ -5,6 +5,7 @@ import {
   getOrCreateCurrentPlan,
   getOrCreateShoppingList, fetchShoppingItems,
   insertShoppingItem, updateShoppingItemChecked, deleteShoppingItems,
+  clearAllShoppingItems,
 } from './db'
 
 const AppContext = createContext(null)
@@ -116,18 +117,25 @@ export function AppProvider({ children }) {
 
   const clearCheckedItems = useCallback(async () => {
     const ids = shoppingItems.filter(i => i.is_checked).map(i => i.id)
-    // Optimistic
     setShoppingItems(prev => prev.filter(i => !i.is_checked))
     try {
       await deleteShoppingItems(ids)
     } catch (err) {
       console.error('clearCheckedItems', err)
-      // Refetch to restore correct state
-      if (shoppingList) {
-        fetchShoppingItems(shoppingList.id).then(setShoppingItems)
-      }
+      if (shoppingList) fetchShoppingItems(shoppingList.id).then(setShoppingItems)
     }
   }, [shoppingItems, shoppingList])
+
+  const clearAllItems = useCallback(async () => {
+    if (!shoppingList) return
+    setShoppingItems([])
+    try {
+      await clearAllShoppingItems(shoppingList.id)
+    } catch (err) {
+      console.error('clearAllItems', err)
+      fetchShoppingItems(shoppingList.id).then(setShoppingItems)
+    }
+  }, [shoppingList])
 
   const shoppingChecked = shoppingItems.filter(i => i.is_checked).length
   const shoppingTotal = shoppingItems.length
@@ -153,6 +161,7 @@ export function AppProvider({ children }) {
       toggleShoppingItem,
       addShoppingItem,
       clearCheckedItems,
+      clearAllItems,
     }}>
       {children}
     </AppContext.Provider>
