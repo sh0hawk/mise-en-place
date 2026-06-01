@@ -1,36 +1,49 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import {
-  fetchMealSlots, insertMealSlot, deleteMealSlot,
+  fetchMealSlotsByDateRange, insertMealSlot, deleteMealSlot,
   syncRecipeIngredientsAdd, syncRecipeIngredientsRemove,
 } from '../lib/db'
 import { useAppData } from '../lib/AppContext'
+import { getWeekStart, toDateString } from '../lib/dates'
 
 export function useMealSlots() {
   const { planId, listId, recipes, shoppingItems } = useAppData()
   const [slots, setSlots] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // Stable date window: same 21 days shown in Plan.jsx (prev week + current + next).
+  // Computed once at mount so the effect dependency array is stable.
+  const [rangeStart, rangeEnd] = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const pws = new Date(getWeekStart(today))
+    pws.setDate(pws.getDate() - 7)
+    const end = new Date(pws)
+    end.setDate(end.getDate() + 20)
+    return [toDateString(pws), toDateString(end)]
+  }, [])
+
   useEffect(() => {
-    if (!planId) return
     let channel
 
-    fetchMealSlots(planId)
+    fetchMealSlotsByDateRange(rangeStart, rangeEnd)
       .then(data => { setSlots(data); setLoading(false) })
       .catch(err => { console.error('fetchMealSlots', err); setLoading(false) })
 
+    // Subscribe to all meal_slots changes (no plan filter) so slots from any
+    // plan — including the salvaged previous-week plan — stay in sync.
     channel = supabase
-      .channel(`meal_slots:${planId}`)
+      .channel('meal_slots_window')
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'meal_slots',
-        filter: `meal_plan_id=eq.${planId}`,
       }, () => {
-        fetchMealSlots(planId).then(setSlots).catch(console.error)
+        fetchMealSlotsByDateRange(rangeStart, rangeEnd).then(setSlots).catch(console.error)
       })
       .subscribe()
 
     return () => supabase.removeChannel(channel)
-  }, [planId])
+  }, [rangeStart, rangeEnd])
 
   const addSlot = useCallback(async (date, mealtime, recipe) => {
     if (!planId) return
@@ -50,7 +63,6 @@ export function useMealSlots() {
       if (listId) {
         const fullRecipe = recipes.find(r => r.id === recipe.id)
         if (fullRecipe?.ingredients?.length) {
-          // Consolidate: match by ingredient name, sum quantities, update existing rows
           syncRecipeIngredientsAdd(listId, fullRecipe, shoppingItems).catch(console.error)
         }
       }
@@ -67,8 +79,6 @@ export function useMealSlots() {
     try {
       await deleteMealSlot(slotId)
 
-      // Clean up shopping list: remove ingredients that came solely from this recipe,
-      // reduce quantities for ingredients shared with other recipes still in the plan.
       if (listId && snapshot) {
         const fullRecipe = recipes.find(r => r.id === snapshot.recipe_id)
         if (fullRecipe) {

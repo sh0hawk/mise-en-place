@@ -50,31 +50,84 @@ export async function deleteRecipe(id) {
 
 // ─── Meal plans ─────────────────────────────────────────────────────────────
 
+async function archiveOtherActivePlans(keepId) {
+  const q = supabase.from('meal_plans').update({ status: 'archived' }).eq('status', 'active')
+  const { error } = keepId ? await q.neq('id', keepId) : await q
+  if (error) console.error('archiveOtherActivePlans', error)
+}
+
 export async function getOrCreateCurrentPlan() {
-  const weekStart = toDateString(getWeekStart())
-
-  const { data: existing, error: fetchErr } = await supabase
-    .from('meal_plans')
-    .select('*')
-    .eq('week_start', weekStart)
-    .maybeSingle()
-  if (fetchErr) throw fetchErr
-  if (existing) return existing
-
-  const weekEnd = new Date(getWeekStart())
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const weekStart = toDateString(getWeekStart(today))
+  const weekEnd = new Date(getWeekStart(today))
   weekEnd.setDate(weekEnd.getDate() + 6)
+  const weekEndStr = toDateString(weekEnd)
 
-  const { data, error } = await supabase
+  // 1. Look for a plan whose week_start matches this Monday.
+  const { data: thisWeekPlan, error: e1 } = await supabase
+    .from('meal_plans').select('*').eq('week_start', weekStart).maybeSingle()
+  if (e1) throw e1
+
+  // 2. Find any meal_slot that has a date inside this calendar week —
+  //    regardless of which plan owns it.  If one exists and it belongs to a
+  //    DIFFERENT plan than thisWeekPlan, that plan is the real "current" plan
+  //    (the user planned ahead while last week's plan was active).
+  const { data: weekSlots } = await supabase
+    .from('meal_slots').select('meal_plan_id')
+    .gte('date', weekStart).lte('date', weekEndStr).limit(1)
+  const slotPlanId = weekSlots?.[0]?.meal_plan_id
+
+  if (slotPlanId && (!thisWeekPlan || slotPlanId !== thisWeekPlan.id)) {
+    // The plan that owns this week's slots is the authoritative plan.
+    const { data: slotPlan, error: e2 } = await supabase
+      .from('meal_plans').select('*').eq('id', slotPlanId).maybeSingle()
+    if (e2) throw e2
+    if (slotPlan) {
+      // Archive the empty shell plan if one was created this week.
+      if (thisWeekPlan) {
+        await supabase.from('meal_plans').update({ status: 'archived' }).eq('id', thisWeekPlan.id)
+          .then(({ error }) => error && console.error('archive empty shell plan', error))
+      }
+      await archiveOtherActivePlans(slotPlan.id)
+      if (slotPlan.status !== 'active') {
+        await supabase.from('meal_plans').update({ status: 'active' }).eq('id', slotPlan.id)
+          .then(({ error }) => error && console.error('reactivate slot plan', error))
+      }
+      return { ...slotPlan, status: 'active' }
+    }
+  }
+
+  // 3. No cross-plan conflict — use this week's plan if it already exists.
+  if (thisWeekPlan) {
+    await archiveOtherActivePlans(thisWeekPlan.id)
+    return thisWeekPlan
+  }
+
+  // 4. Truly fresh week with no pre-planned slots — create a new plan.
+  await archiveOtherActivePlans(null)
+  const { data: newPlan, error: e3 } = await supabase
     .from('meal_plans')
-    .insert({ week_start: weekStart, week_end: toDateString(weekEnd), status: 'active' })
-    .select()
-    .single()
-  if (error) throw error
-  return data
+    .insert({ week_start: weekStart, week_end: weekEndStr, status: 'active' })
+    .select().single()
+  if (e3) throw e3
+  return newPlan
 }
 
 // ─── Meal slots ──────────────────────────────────────────────────────────────
 
+// Primary query: load by date range so slots from any plan are visible.
+export async function fetchMealSlotsByDateRange(startDate, endDate) {
+  const { data, error } = await supabase
+    .from('meal_slots')
+    .select('*, recipe:recipe_id(id, name, categories, prep_time, cook_time, photo_url)')
+    .gte('date', startDate)
+    .lte('date', endDate)
+  if (error) throw error
+  return data ?? []
+}
+
+// Legacy — kept for any callers that need plan-scoped fetch.
 export async function fetchMealSlots(planId) {
   const { data, error } = await supabase
     .from('meal_slots')
@@ -95,6 +148,17 @@ export async function insertMealSlot({ planId, date, mealtime, recipeId, serving
 }
 
 export async function deleteMealSlot(slotId) {
+  // Safety: refuse to delete from an archived plan — only user-initiated removes
+  // on the active plan are allowed. Past-date slots are already read-only in the UI.
+  const { data: slot } = await supabase
+    .from('meal_slots').select('meal_plan_id').eq('id', slotId).maybeSingle()
+  if (slot?.meal_plan_id) {
+    const { data: plan } = await supabase
+      .from('meal_plans').select('status').eq('id', slot.meal_plan_id).maybeSingle()
+    if (plan?.status === 'archived') {
+      throw new Error('Cannot delete a meal slot that belongs to an archived plan')
+    }
+  }
   const { error } = await supabase.from('meal_slots').delete().eq('id', slotId)
   if (error) throw error
 }
@@ -102,21 +166,39 @@ export async function deleteMealSlot(slotId) {
 // ─── Shopping lists ──────────────────────────────────────────────────────────
 
 export async function getOrCreateShoppingList(planId) {
+  // 1. Return the list already linked to this plan.
   const { data: existing, error: fetchErr } = await supabase
-    .from('shopping_lists')
-    .select('*')
-    .eq('meal_plan_id', planId)
-    .maybeSingle()
+    .from('shopping_lists').select('*').eq('meal_plan_id', planId).maybeSingle()
   if (fetchErr) throw fetchErr
   if (existing) return existing
 
-  const { data, error } = await supabase
-    .from('shopping_lists')
-    .insert({ meal_plan_id: planId })
-    .select()
-    .single()
+  // 2. No list for this plan yet. Re-home the most recent existing list rather
+  //    than creating a new empty one — this keeps unchecked items visible across
+  //    the weekly rollover without any explicit migration step.
+  try {
+    const { data: recent } = await supabase
+      .from('shopping_lists').select('*')
+      .neq('meal_plan_id', planId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (recent?.length) {
+      const { data: rehomed, error: rehomeErr } = await supabase
+        .from('shopping_lists')
+        .update({ meal_plan_id: planId })
+        .eq('id', recent[0].id)
+        .select().single()
+      if (!rehomeErr && rehomed) return rehomed
+    }
+  } catch (err) {
+    console.error('getOrCreateShoppingList re-home', err)
+  }
+
+  // 3. No prior list exists at all (first run) — create fresh.
+  const { data: newList, error } = await supabase
+    .from('shopping_lists').insert({ meal_plan_id: planId }).select().single()
   if (error) throw error
-  return data
+  return newList
 }
 
 // ─── Shopping items ──────────────────────────────────────────────────────────
@@ -450,6 +532,16 @@ export async function syncRecipeIngredientsRemove(recipe, currentItems) {
 
 // Delete every item in a shopping list (used by "Clear list").
 export async function clearAllShoppingItems(listId) {
+  // Safety: refuse to wipe a list that belongs to an archived plan.
+  const { data: list } = await supabase
+    .from('shopping_lists').select('meal_plan_id').eq('id', listId).maybeSingle()
+  if (list?.meal_plan_id) {
+    const { data: plan } = await supabase
+      .from('meal_plans').select('status').eq('id', list.meal_plan_id).maybeSingle()
+    if (plan?.status === 'archived') {
+      throw new Error('Cannot clear an archived shopping list')
+    }
+  }
   const { error } = await supabase.from('shopping_items').delete().eq('shopping_list_id', listId)
   if (error) throw error
 }
